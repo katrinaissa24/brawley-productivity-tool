@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --c-bg: 250 250 250;
+  --c-panel: 244 244 245;
+  --c-card: 255 255 255;
+  --c-pop: 255 255 255;
+  --c-border: 228 228 231;
+  --c-border2: 209 209 214;
+  --c-text: 24 24 27;
+  --c-text2: 90 90 99;
+  --c-text3: 161 161 170;
+  --c-accent: 99 102 241;
+  color-scheme: light;
+}
+
+.dark {
+  --c-bg: 23 23 26;
+  --c-panel: 30 30 34;
+  --c-card: 39 39 44;
+  --c-pop: 47 47 53;
+  --c-border: 58 58 65;
+  --c-border2: 80 80 89;
+  --c-text: 240 240 243;
+  --c-text2: 178 178 187;
+  --c-text3: 120 120 130;
+  color-scheme: dark;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-app text-ink antialiased overflow-hidden text-[14px];
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", ui-sans-serif,
+      system-ui, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  .selectable {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--c-border2) / 0.75);
+    border-radius: 6px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--c-text3) / 0.9);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent) / 0.55);
+    outline-offset: 1px;
+  }
+}
+
+@layer utilities {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes flowFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes flowScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes flowSlideRight {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes flowPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes flowSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.anim-fade {
+  animation: flowFadeIn 150ms ease-out;
+}
+.anim-scale {
+  animation: flowScaleIn 170ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.anim-slide-right {
+  animation: flowSlideRight 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.anim-pop {
+  animation: flowPop 130ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.anim-slide-up {
+  animation: flowSlideUp 180ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* Markdown body (task notes, reflections) */
+.md-body {
+  @apply text-[13.5px] leading-relaxed text-ink2 selectable;
+}
+.md-body h1,
+.md-body h2,
+.md-body h3 {
+  @apply text-ink font-semibold mt-3 mb-1;
+}
+.md-body h1 {
+  @apply text-base;
+}
+.md-body h2 {
+  @apply text-[15px];
+}
+.md-body h3 {
+  @apply text-sm;
+}
+.md-body p {
+  @apply my-1.5;
+}
+.md-body ul,
+.md-body ol {
+  @apply pl-5 my-1.5 list-disc;
+}
+.md-body ol {
+  @apply list-decimal;
+}
+.md-body code {
+  @apply text-[12px] px-1 py-0.5 rounded bg-panel border border-bord;
+}
+.md-body pre {
+  @apply p-2.5 rounded-lg bg-panel border border-bord overflow-x-auto my-2;
+}
+.md-body pre code {
+  @apply border-0 bg-transparent p-0;
+}
+.md-body a {
+  color: rgb(var(--c-accent));
+  text-decoration: underline;
+}
+.md-body blockquote {
+  @apply border-l-2 border-bord2 pl-3 my-2 text-ink3;
+}
