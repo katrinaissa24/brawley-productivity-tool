@@ -180,7 +180,7 @@ export function hexToTriple(hex: string): string {
 }
 
 export const PROJECT_COLORS = [
-  // row 1
+  // row 1 — vivid
   "#6366F1", // indigo
   "#3B82F6", // blue
   "#0EA5E9", // sky
@@ -193,20 +193,37 @@ export const PROJECT_COLORS = [
   "#8B5CF6", // violet
   "#64748B", // slate
   "#A16207", // bronze
-  // row 2
-  "#84CC16", // lime
-  "#10B981", // emerald
-  "#06B6D4", // cyan
-  "#0369A1", // ocean
-  "#1E40AF", // navy
-  "#7C3AED", // purple
-  "#D946EF", // fuchsia
-  "#F43F5E", // rose
-  "#EAB308", // yellow
-  "#B45309", // caramel
-  "#78716C", // stone
-  "#334155", // charcoal
+  // row 2 — soft pastels of the same hues
+  "#C7D2FE", // indigo
+  "#BFDBFE", // blue
+  "#BAE6FD", // sky
+  "#99F6E4", // teal
+  "#BBF7D0", // green
+  "#FDE68A", // amber
+  "#FED7AA", // orange
+  "#FECACA", // red
+  "#FBCFE8", // pink
+  "#DDD6FE", // violet
+  "#E2E8F0", // slate
+  "#FDE4C7", // sand
 ];
+
+/** True if a hex is one of the preset swatches (case-insensitive). */
+export function isPresetColor(hex: string): boolean {
+  return PROJECT_COLORS.some((c) => c.toLowerCase() === hex.toLowerCase());
+}
+
+/** Normalize "abc" / "#abc" / "aabbcc" / "#AABBCC" → "#AABBCC", or null if invalid. */
+export function normalizeHex(input: string): string | null {
+  let s = input.trim().replace(/^#/, "");
+  if (/^[0-9a-fA-F]{3}$/.test(s)) {
+    s = s
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  }
+  return /^[0-9a-fA-F]{6}$/.test(s) ? "#" + s.toUpperCase() : null;
+}
 
 export const ACCENT_COLORS: { name: string; hex: string }[] = [
   { name: "Indigo", hex: "#6366F1" },

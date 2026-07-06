@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useData } from "../stores/data";
 import { useUI } from "../stores/ui";
-import { cn, PROJECT_COLORS } from "../lib/util";
+import { cn, isPresetColor, normalizeHex, PROJECT_COLORS } from "../lib/util";
 import { Button, Modal, ModalHeader, Segmented, Select, TextInput } from "./ui/primitives";
 import { IconAlert, IconCheck, IconX } from "./icons";
 
@@ -112,18 +112,30 @@ export function ProjectModal() {
   const editing = modal?.projectId ? projects.find((p) => p.id === modal.projectId) : null;
   const [name, setName] = useState("");
   const [color, setColor] = useState(PROJECT_COLORS[0]);
+  const [hexInput, setHexInput] = useState(PROJECT_COLORS[0].slice(1));
   const [icon, setIcon] = useState("");
+
+  const pickColor = (hex: string) => {
+    const norm = normalizeHex(hex) ?? hex;
+    setColor(norm);
+    setHexInput(norm.replace(/^#/, ""));
+  };
 
   useEffect(() => {
     if (modal) {
       setName(editing?.name ?? "");
-      setColor(editing?.color ?? PROJECT_COLORS[Math.floor(Math.random() * 6)]);
+      const initial = editing?.color ?? PROJECT_COLORS[Math.floor(Math.random() * 6)];
+      setColor(initial);
+      setHexInput(initial.replace(/^#/, ""));
       setIcon(editing?.icon ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modal?.projectId, modal != null]);
 
   if (!modal) return null;
+
+  const custom = !isPresetColor(color);
+  const colorForWheel = normalizeHex(color) ?? "#6366F1";
 
   const save = () => {
     const trimmed = name.trim();
@@ -166,14 +178,55 @@ export function ProjectModal() {
             {PROJECT_COLORS.map((c) => (
               <button
                 key={c}
-                onClick={() => setColor(c)}
+                onClick={() => pickColor(c)}
                 className={cn(
                   "h-6 w-6 rounded-full transition-transform hover:scale-110",
-                  color === c && "ring-2 ring-offset-2 ring-offset-pop ring-accent scale-110",
+                  color.toLowerCase() === c.toLowerCase() &&
+                    "ring-2 ring-offset-2 ring-offset-pop ring-accent scale-110",
                 )}
                 style={{ background: c }}
               />
             ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2.5">
+            <label
+              title="Custom color — opens the color wheel"
+              className={cn(
+                "relative h-6 w-6 shrink-0 cursor-pointer rounded-full transition-transform hover:scale-110",
+                custom && "ring-2 ring-accent ring-offset-2 ring-offset-pop scale-110",
+              )}
+              style={{
+                background: custom
+                  ? color
+                  : "conic-gradient(from 90deg, #ef4444, #f59e0b, #eab308, #22c55e, #06b6d4, #6366f1, #a855f7, #ec4899, #ef4444)",
+              }}
+            >
+              <input
+                type="color"
+                value={colorForWheel}
+                onChange={(e) => pickColor(e.target.value)}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            </label>
+            <span className="text-[12px] text-ink3">Custom</span>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[12px] text-ink3">
+                #
+              </span>
+              <input
+                value={hexInput}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6);
+                  setHexInput(raw);
+                  const norm = normalizeHex(raw);
+                  if (norm) setColor(norm);
+                }}
+                onBlur={() => setHexInput(color.replace(/^#/, ""))}
+                placeholder="6366F1"
+                spellCheck={false}
+                className="h-[28px] w-[104px] rounded-lg border border-bord bg-card pl-[18px] pr-2 text-[12.5px] uppercase tracking-wide text-ink outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/15"
+              />
+            </div>
           </div>
         </div>
       </div>
