@@ -1,6 +1,6 @@
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { Project, View } from "../types";
 import { useData } from "../stores/data";
 import { useUI } from "../stores/ui";
@@ -22,7 +22,7 @@ import {
   IconSun,
   IconZap,
 } from "./icons";
-import { Kbd } from "./ui/primitives";
+import { FloatingMenu, Kbd, type MenuItem } from "./ui/primitives";
 
 function NavItem({
   icon,
@@ -48,7 +48,7 @@ function NavItem({
       className={cn(
         "group flex w-full items-center gap-2.5 rounded-lg px-2.5 h-[30px] text-[13px] transition-colors duration-150",
         active
-          ? "bg-accent/12 bg-accent/10 text-accent font-medium"
+          ? "bg-accent/10 text-accent font-medium"
           : "text-ink2 hover:bg-ink/5 hover:text-ink",
       )}
     >
@@ -70,8 +70,40 @@ function ProjectRow({ project }: { project: Project }) {
   const view = useUI((s) => s.view);
   const go = useUI((s) => s.go);
   const tasks = useData((s) => s.tasks);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const openCount = tasks.filter((t) => t.projectId === project.id && isOpen(t)).length;
   const active = view.name === "project" && view.projectId === project.id;
+
+  const menuItems = (): MenuItem[] => {
+    const ui = useUI.getState();
+    const data = useData.getState();
+    return [
+      {
+        label: "Edit project",
+        onSelect: () => ui.setProjectModal({ projectId: project.id }),
+      },
+      {
+        label: "New goal",
+        onSelect: () => ui.setGoalModal({ projectId: project.id }),
+      },
+      { divider: true, label: "" },
+      {
+        label: "Archive project",
+        onSelect: () =>
+          ui.ask({
+            title: "Archive project?",
+            message: `"${project.name}" will be hidden from the sidebar. Tasks are preserved; restore anytime from Settings → Archive.`,
+            confirmLabel: "Archive",
+            onConfirm: () => {
+              data.archiveProject(project.id);
+              if (ui.view.name === "project" && ui.view.projectId === project.id) {
+                ui.go({ name: "today" });
+              }
+            },
+          }),
+      },
+    ];
+  };
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver, active: dragActive } =
     useSortable({
@@ -91,6 +123,10 @@ function ProjectRow({ project }: { project: Project }) {
     >
       <button
         onClick={() => go({ name: "project", projectId: project.id })}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY });
+        }}
         className={cn(
           "group flex w-full items-center gap-2.5 rounded-lg px-2.5 h-[30px] text-[13px] transition-all duration-150",
           active ? "bg-accent/10 text-ink font-medium" : "text-ink2 hover:bg-ink/5 hover:text-ink",
@@ -106,6 +142,7 @@ function ProjectRow({ project }: { project: Project }) {
           <span className="text-[11px] text-ink3 tabular-nums group-hover:text-ink2">{openCount}</span>
         )}
       </button>
+      {menu && <FloatingMenu x={menu.x} y={menu.y} items={menuItems()} onClose={() => setMenu(null)} />}
     </div>
   );
 }

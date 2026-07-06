@@ -13,8 +13,11 @@ import { useData } from "./stores/data";
 import { useSettings } from "./stores/settings";
 import { useUI } from "./stores/ui";
 import { activeProjects } from "./stores/selectors";
-import { reorderIds, todayStr } from "./lib/util";
-import { isEditableTarget, matchCombo } from "./lib/shortcuts";
+import { reorderIds } from "./lib/util";
+import { comboToAccelerator, isEditableTarget, matchCombo } from "./lib/shortcuts";
+import { syncGlobalShortcut } from "./lib/native";
+import { startNotificationScheduler } from "./lib/notifications";
+import { isTauri } from "./db/driver";
 import type { DragData, DropData } from "./components/dnd";
 import { collisionDetection } from "./components/dnd";
 import { Sidebar } from "./components/Sidebar";
@@ -24,6 +27,8 @@ import { PlanDayModal } from "./components/PlanDayModal";
 import { GoalModal } from "./components/GoalModal";
 import { ClassifyPopover, ConfirmDialog, ProjectModal, Toasts } from "./components/AppModals";
 import { GoalDeadlineDialog, useGoalDeadlines } from "./components/GoalDeadlineDialog";
+import { CommandPalette } from "./components/CommandPalette";
+import { Onboarding } from "./components/Onboarding";
 import { InboxView } from "./views/InboxView";
 import { TodayView } from "./views/TodayView";
 import { ProjectView } from "./views/ProjectView";
@@ -43,6 +48,17 @@ function boot(): Promise<void> {
       const settingsJson = await useData.getState().loadAll();
       useSettings.getState().init(settingsJson);
       useData.getState().ensureActiveSprint();
+
+      if (isTauri) {
+        // Capture window inserts → reload; keep the user's global shortcut registered.
+        const { listen } = await import("@tauri-apps/api/event");
+        void listen("flow:data-changed", () => void useData.getState().refresh());
+        const combo = useSettings.getState().settings.shortcuts.globalCapture;
+        void syncGlobalShortcut(comboToAccelerator(combo)).catch((e) =>
+          console.warn("global shortcut registration failed", e),
+        );
+      }
+      startNotificationScheduler();
     })();
   }
   return bootPromise;
@@ -60,11 +76,11 @@ function useGlobalShortcuts(enabled: boolean) {
       const editable = isEditableTarget(e);
 
       if (e.key === "Escape") {
+        if (ui.paletteOpen) return ui.setPaletteOpen(false);
         if (editable) {
           (e.target as HTMLElement).blur();
           return;
         }
-        if (ui.paletteOpen) return ui.setPaletteOpen(false);
         if (ui.dropClassify) return ui.setDropClassify(null);
         if (ui.detailTaskId) return ui.openDetail(null);
         if (ui.selectedTaskId) return ui.select(null);
@@ -342,6 +358,8 @@ export default function App() {
       <GoalModal />
       <ClassifyPopover />
       <GoalDeadlineDialog />
+      <CommandPalette />
+      <Onboarding />
       <ConfirmDialog />
       <Toasts />
     </DndContext>

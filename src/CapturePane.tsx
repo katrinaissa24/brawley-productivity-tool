@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { isTauri } from "./db/driver";
 import { useData } from "./stores/data";
+import { useSettings } from "./stores/settings";
 import { IconPlus } from "./components/icons";
 
 /**
@@ -17,7 +18,11 @@ export function CapturePane() {
     void useData
       .getState()
       .loadAll()
-      .then(() => setReady(true))
+      .then((settingsJson) => {
+        // Theme + accent so the floating bar matches the app.
+        useSettings.getState().init(settingsJson);
+        setReady(true);
+      })
       .catch((e) => console.error("capture load failed", e));
   }, []);
 
@@ -28,6 +33,8 @@ export function CapturePane() {
       const { listen } = await import("@tauri-apps/api/event");
       unlisten = await listen("capture:show", () => {
         setValue("");
+        // Pick up anything the main window changed while we were hidden.
+        void useData.getState().refresh();
         setTimeout(() => ref.current?.focus(), 30);
       });
     })();

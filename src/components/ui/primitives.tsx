@@ -27,7 +27,7 @@ export const Button = forwardRef<
 >(function Button({ variant = "secondary", size = "sm", icon, className, children, ...props }, ref) {
   const sizes = {
     xs: "h-6 px-2 text-xs gap-1 rounded-md",
-    sm: "h-7.5 h-[30px] px-3 text-[13px] gap-1.5 rounded-lg",
+    sm: "h-[30px] px-3 text-[13px] gap-1.5 rounded-lg",
     md: "h-9 px-4 text-sm gap-2 rounded-lg",
   };
   const variants: Record<ButtonVariant, string> = {

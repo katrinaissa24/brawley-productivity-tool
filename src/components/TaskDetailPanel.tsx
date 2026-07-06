@@ -326,7 +326,7 @@ export function TaskDetailPanel() {
           />
 
           {allSubsDone && !done && (
-            <div className="anim-fade mt-2 flex items-center justify-between rounded-lg border border-accent/30 bg-accent/8 bg-accent/5 px-3 py-2">
+            <div className="anim-fade mt-2 flex items-center justify-between rounded-lg border border-accent/30 bg-accent/5 px-3 py-2">
               <span className="text-[12.5px] text-ink2">All subtasks done — mark task done?</span>
               <Button size="xs" variant="primary" onClick={() => completeTask(task.id)}>
                 Complete
