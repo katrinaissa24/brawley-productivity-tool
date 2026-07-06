@@ -103,11 +103,11 @@ export function ReviewWizard() {
     );
     const reason = (t: Task): { label: string; rank: number } | null => {
       if (t.goalId && atRiskGoalIds.has(t.goalId)) return { label: "At-risk goal", rank: 0 };
-      if (t.priority === "P1") return { label: "P1", rank: 1 };
+      if (t.priority === "P1") return { label: "High priority", rank: 1 };
       if (t.dueDate && daysUntil(t.dueDate) <= 7) {
         return { label: t.dueDate < soon ? "Overdue" : "Due soon", rank: 2 };
       }
-      if (t.priority === "P2") return { label: "P2", rank: 3 };
+      if (t.priority === "P2") return { label: "Medium", rank: 3 };
       return { label: "", rank: 5 };
     };
     return pool

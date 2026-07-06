@@ -89,7 +89,7 @@ export function taskMenuItems(task: Task): MenuItem[] {
     label: "Set priority",
     icon: <IconFlag size={14} />,
     submenu: (["P1", "P2", "P3", null] as const).map((pr) => ({
-      label: pr ?? "None",
+      label: pr ? PRIORITY_META[pr].label : "None",
       checked: task.priority === pr,
       onSelect: () => data.updateTask(task.id, { priority: pr }),
     })),
@@ -174,7 +174,9 @@ export function TaskChips({ task, showProject }: { task: Task; showProject?: boo
         </Chip>
       )}
       {task.priority && (
-        <Chip className={PRIORITY_META[task.priority].chip}>{task.priority}</Chip>
+        <Chip className={PRIORITY_META[task.priority].chip}>
+          {PRIORITY_META[task.priority].label}
+        </Chip>
       )}
       {task.dueDate && (
         <Chip
@@ -281,7 +283,8 @@ export function TaskCard({
   const updateTask = useData((s) => s.updateTask);
   const openDetail = useUI((s) => s.openDetail);
   const select = useUI((s) => s.select);
-  const selected = useUI((s) => s.selectedTaskId === task.id);
+  const toggleSelect = useUI((s) => s.toggleSelect);
+  const selected = useUI((s) => s.selectedIds.includes(task.id));
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [leaving, setLeaving] = useState(false);
   const done = task.status === "done";
@@ -299,13 +302,17 @@ export function TaskCard({
     <>
       <div
         data-task-card={task.id}
-        onClick={() => {
+        onClick={(e) => {
+          if (e.shiftKey || e.metaKey) {
+            toggleSelect(task.id);
+            return;
+          }
           select(task.id);
           openDetail(task.id);
         }}
         onContextMenu={(e) => {
           e.preventDefault();
-          select(task.id);
+          if (!useUI.getState().selectedIds.includes(task.id)) select(task.id);
           setMenu({ x: e.clientX, y: e.clientY });
         }}
         className={cn(

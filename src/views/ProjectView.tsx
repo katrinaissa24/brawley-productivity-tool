@@ -13,7 +13,7 @@ import {
   statusColumns,
   workloadMinutes,
 } from "../stores/selectors";
-import { cn, daysUntil, formatMinutes, plural } from "../lib/util";
+import { cn, daysUntil, formatMinutes, plural, PRIORITY_META } from "../lib/util";
 import { TaskBoard } from "../components/TaskBoard";
 import { TaskCard } from "../components/TaskCard";
 import { ViewShell } from "../components/ViewShell";
@@ -174,9 +174,9 @@ export function ProjectView({ projectId }: { projectId: string }) {
           placeholder="Priority"
           className="h-[26px] text-[12px]"
           options={[
-            { value: "P1", label: "P1" },
-            { value: "P2", label: "P2" },
-            { value: "P3", label: "P3" },
+            { value: "P1", label: "High" },
+            { value: "P2", label: "Medium" },
+            { value: "P3", label: "Low" },
             { value: "none", label: "No priority" },
           ]}
         />
@@ -313,7 +313,11 @@ function ProjectList({
   } else {
     for (const pr of ["P1", "P2", "P3", null] as (Priority | null)[]) {
       const list = tasks.filter((t) => t.priority === pr && t.status !== "done").sort(sortFn);
-      groups.push({ key: pr ?? "none", label: pr ?? "No priority", tasks: list });
+      groups.push({
+        key: pr ?? "none",
+        label: pr ? `${PRIORITY_META[pr].label} priority` : "No priority",
+        tasks: list,
+      });
     }
     const doneList = tasks.filter((t) => t.status === "done").sort(sortFn);
     if (doneList.length > 0) groups.push({ key: "done", label: "Done", tasks: doneList });

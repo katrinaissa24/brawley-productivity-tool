@@ -102,6 +102,25 @@ function ProjectRow({ project }: { project: Project }) {
             },
           }),
       },
+      {
+        label: "Delete project…",
+        danger: true,
+        onSelect: () => {
+          const count = data.tasks.filter((t) => t.projectId === project.id).length;
+          ui.ask({
+            title: "Delete project permanently?",
+            message: `"${project.name}"${count > 0 ? ` and its ${count} task${count === 1 ? "" : "s"}` : ""} will be gone for good — this cannot be undone. Archive instead if you might want it back.`,
+            confirmLabel: "Delete forever",
+            danger: true,
+            onConfirm: () => {
+              data.deleteProjectHard(project.id);
+              if (ui.view.name === "project" && ui.view.projectId === project.id) {
+                ui.go({ name: "today" });
+              }
+            },
+          });
+        },
+      },
     ];
   };
 

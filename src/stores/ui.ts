@@ -51,8 +51,11 @@ interface UIState {
   dropClassify: DropClassify | null;
   setDropClassify(v: DropClassify | null): void;
 
-  selectedTaskId: string | null;
+  /** Multi-selection of task ids; single click selects exclusively, shift-click toggles. */
+  selectedIds: string[];
   select(id: string | null): void;
+  toggleSelect(id: string): void;
+  clearSelection(): void;
 
   captureFocusTick: number;
   focusCapture(): void;
@@ -73,12 +76,12 @@ let toastSeq = 1;
 export const useUI = create<UIState>((set, get) => ({
   view: { name: "today" },
   go(view) {
-    set({ view, selectedTaskId: null, paletteOpen: false });
+    set({ view, selectedIds: [], paletteOpen: false });
   },
 
   detailTaskId: null,
   openDetail(id) {
-    set({ detailTaskId: id, selectedTaskId: id ?? get().selectedTaskId });
+    set({ detailTaskId: id, selectedIds: id ? [id] : get().selectedIds });
   },
 
   paletteOpen: false,
@@ -123,9 +126,18 @@ export const useUI = create<UIState>((set, get) => ({
     set({ dropClassify: v });
   },
 
-  selectedTaskId: null,
+  selectedIds: [],
   select(id) {
-    set({ selectedTaskId: id });
+    set({ selectedIds: id ? [id] : [] });
+  },
+  toggleSelect(id) {
+    const cur = get().selectedIds;
+    set({
+      selectedIds: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
+    });
+  },
+  clearSelection() {
+    set({ selectedIds: [] });
   },
 
   captureFocusTick: 0,

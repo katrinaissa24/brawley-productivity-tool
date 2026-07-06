@@ -29,6 +29,7 @@ import { ClassifyPopover, ConfirmDialog, ProjectModal, Toasts } from "./componen
 import { GoalDeadlineDialog, useGoalDeadlines } from "./components/GoalDeadlineDialog";
 import { CommandPalette } from "./components/CommandPalette";
 import { Onboarding } from "./components/Onboarding";
+import { BulkBar, confirmDeleteTasks } from "./components/BulkBar";
 import { InboxView } from "./views/InboxView";
 import { TodayView } from "./views/TodayView";
 import { ProjectView } from "./views/ProjectView";
@@ -83,7 +84,15 @@ function useGlobalShortcuts(enabled: boolean) {
         }
         if (ui.dropClassify) return ui.setDropClassify(null);
         if (ui.detailTaskId) return ui.openDetail(null);
-        if (ui.selectedTaskId) return ui.select(null);
+        if (ui.selectedIds.length) return ui.clearSelection();
+        return;
+      }
+
+      if (!editable && (e.key === "Backspace" || e.key === "Delete")) {
+        if (ui.selectedIds.length > 0) {
+          e.preventDefault();
+          confirmDeleteTasks(ui.selectedIds);
+        }
         return;
       }
 
@@ -127,17 +136,18 @@ function useGlobalShortcuts(enabled: boolean) {
         return;
       }
       if (matchCombo(e, sc.completeTask)) {
-        const id = ui.detailTaskId ?? ui.selectedTaskId;
-        if (id) {
+        const ids = ui.detailTaskId ? [ui.detailTaskId] : ui.selectedIds;
+        if (ids.length) {
           e.preventDefault();
-          data.completeTask(id);
+          for (const id of ids) data.completeTask(id);
+          if (ids.length > 1) ui.clearSelection();
         }
         return;
       }
       if (!editable && matchCombo(e, sc.editTask)) {
-        if (ui.selectedTaskId) {
+        if (ui.selectedIds.length === 1) {
           e.preventDefault();
-          ui.openDetail(ui.selectedTaskId);
+          ui.openDetail(ui.selectedIds[0]);
         }
         return;
       }
@@ -175,10 +185,47 @@ function CurrentView() {
 
 /* ----------------------------------- app ----------------------------------- */
 
+/** Stack of cards shown while dragging a multi-selection — gathers to the cursor. */
+function GroupDragOverlay({ tasks }: { tasks: Task[] }) {
+  const [gathered, setGathered] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setGathered(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const shown = tasks.slice(0, 4);
+  return (
+    <div className="pointer-events-none relative w-[300px]">
+      {shown.map((t, i) => (
+        <div
+          key={t.id}
+          className="absolute left-0 top-0 w-full"
+          style={{
+            zIndex: shown.length - i,
+            transform: gathered
+              ? `translate(${i * 5}px, ${i * 7}px) rotate(${i * 1.3}deg)`
+              : `translate(0px, ${i * 58}px)`,
+            opacity: gathered && i > 0 ? Math.max(0.55, 0.92 - i * 0.14) : 1,
+            transition: "transform 220ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 220ms ease",
+          }}
+        >
+          <TaskCard task={t} showProject={i === 0} dense={i > 0} />
+        </div>
+      ))}
+      <span className="absolute -right-2.5 -top-2.5 z-50 flex h-6 min-w-[24px] items-center justify-center rounded-full bg-accent px-1.5 text-[12px] font-bold text-white shadow-pop">
+        {tasks.length}
+      </span>
+      {/* invisible sizer so the overlay has real dimensions */}
+      <div className="invisible">
+        <TaskCard task={shown[0]} showProject />
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [booted, setBooted] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
-  const [dragTask, setDragTask] = useState<Task | null>(null);
+  const [dragTasks, setDragTasks] = useState<Task[] | null>(null);
   const [dragProject, setDragProject] = useState<Project | null>(null);
 
   useEffect(() => {
@@ -199,7 +246,17 @@ export default function App() {
 
   const onDragStart = (e: DragStartEvent) => {
     const d = e.active.data.current as DragData | undefined;
-    if (d?.type === "task") setDragTask(d.task);
+    if (d?.type === "task") {
+      const sel = useUI.getState().selectedIds;
+      if (sel.includes(d.task.id) && sel.length > 1) {
+        const rest = useData
+          .getState()
+          .tasks.filter((t) => sel.includes(t.id) && t.id !== d.task.id);
+        setDragTasks([d.task, ...rest]);
+      } else {
+        setDragTasks([d.task]);
+      }
+    }
     if (d?.type === "project") {
       const p = useData.getState().projects.find((x) => x.id === d.projectId);
       setDragProject(p ?? null);
@@ -207,7 +264,7 @@ export default function App() {
   };
 
   const onDragEnd = (e: DragEndEvent) => {
-    setDragTask(null);
+    setDragTasks(null);
     setDragProject(null);
     const a = e.active.data.current as DragData | undefined;
     const o = e.over?.data.current as DropData | undefined;
@@ -227,53 +284,99 @@ export default function App() {
       return;
     }
 
-    // task drags
+    // task drags — a drag of a selected card carries the whole selection
     const t = data.tasks.find((x) => x.id === a.task.id);
     if (!t) return;
+    const sel = ui.selectedIds;
+    const groupIds =
+      sel.includes(t.id) && sel.length > 1
+        ? [t.id, ...sel.filter((id) => id !== t.id)]
+        : [t.id];
+    const group = groupIds
+      .map((id) => data.tasks.find((x) => x.id === id))
+      .filter(Boolean) as Task[];
+
+    /** Set status (and sprint) on every dragged task; toast once if WIP blocks some. */
+    const adoptContainer = (status: Task["status"], sprintId: string | null): Task[] => {
+      const moved: Task[] = [];
+      let blockedMsg: string | null = null;
+      for (const task of group) {
+        if (sprintId && task.sprintId !== sprintId) data.commitToSprint(task.id, sprintId);
+        if (task.status !== status) {
+          const r = data.trySetStatus(task.id, status);
+          if (!r.ok) {
+            if (r.msg) blockedMsg = r.msg;
+            continue;
+          }
+        }
+        moved.push(task);
+      }
+      if (blockedMsg) ui.toast(blockedMsg, "error");
+      return moved;
+    };
 
     if (o.type === "project") {
-      if (t.projectId !== o.projectId) {
-        const wasInbox = t.projectId === null;
-        data.updateTask(t.id, { projectId: o.projectId, goalId: null });
-        if (wasInbox) {
-          const rect = e.over.rect;
-          ui.setDropClassify({
-            taskId: t.id,
-            x: rect.left + rect.width + 14,
-            y: rect.top - 2,
-          });
+      const wasSingleInboxNote = group.length === 1 && t.projectId === null;
+      let movedCount = 0;
+      for (const task of group) {
+        if (task.projectId !== o.projectId) {
+          data.updateTask(task.id, { projectId: o.projectId, goalId: null });
+          movedCount++;
         }
+      }
+      if (wasSingleInboxNote && movedCount > 0) {
+        const rect = e.over.rect;
+        ui.setDropClassify({
+          taskId: t.id,
+          x: rect.left + rect.width + 14,
+          y: rect.top - 2,
+        });
+      } else if (group.length > 1 && movedCount > 0) {
+        const proj = data.projects.find((p) => p.id === o.projectId);
+        ui.toast(`Moved ${movedCount} task${movedCount === 1 ? "" : "s"} to ${proj?.name ?? "project"}`, "success");
+        ui.clearSelection();
       }
       return;
     }
 
     if (o.type === "backlog") {
-      if (t.sprintId) data.removeFromSprint(t.id);
+      for (const task of group) if (task.sprintId) data.removeFromSprint(task.id);
       return;
     }
 
     if (o.type === "column") {
-      if (o.sprintId && t.sprintId !== o.sprintId) data.commitToSprint(t.id, o.sprintId);
-      if (t.status !== o.status) {
-        const r = data.trySetStatus(t.id, o.status);
-        if (!r.ok && r.msg) ui.toast(r.msg, "error");
-        if (!r.ok) return;
-      }
-      // drop at end of column
-      const lastId = o.listIds.filter((id) => id !== t.id).pop();
-      if (lastId) {
-        const last = data.tasks.find((x) => x.id === lastId);
-        if (last) data.applySortOrders([{ id: t.id, sortOrder: last.sortOrder + 1000 }], "task");
+      const moved = adoptContainer(o.status, o.sprintId);
+      // append at the end of the column, keeping the dragged order
+      const lastId = o.listIds.filter((id) => !groupIds.includes(id)).pop();
+      const last = lastId ? data.tasks.find((x) => x.id === lastId) : undefined;
+      const base = last ? last.sortOrder : undefined;
+      if (base !== undefined && moved.length) {
+        data.applySortOrders(
+          moved.map((task, k) => ({ id: task.id, sortOrder: base + (k + 1) * 1000 })),
+          "task",
+        );
       }
       return;
     }
 
     if (o.type === "task") {
       const overTask = data.tasks.find((x) => x.id === o.task.id);
-      if (!overTask || overTask.id === t.id) return;
+      if (!overTask || groupIds.includes(overTask.id)) return;
+
+      if (group.length > 1) {
+        // group: adopt target container, then park the stack right after the target
+        const moved = adoptContainer(overTask.status, overTask.sprintId);
+        if (moved.length) {
+          data.applySortOrders(
+            moved.map((task, k) => ({ id: task.id, sortOrder: overTask.sortOrder + k + 1 })),
+            "task",
+          );
+        }
+        return;
+      }
+
       const sameList = a.listIds.includes(overTask.id) && a.listIds.includes(t.id);
       if (!sameList) {
-        // adopt the over task's container (status / sprint) before ordering
         if (overTask.sprintId && t.sprintId !== overTask.sprintId) {
           data.commitToSprint(t.id, overTask.sprintId);
         }
@@ -327,7 +430,7 @@ export default function App() {
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragCancel={() => {
-        setDragTask(null);
+        setDragTasks(null);
         setDragProject(null);
       }}
     >
@@ -339,9 +442,10 @@ export default function App() {
       </div>
 
       <DragOverlay dropAnimation={{ duration: 160, easing: "cubic-bezier(0.2, 0.8, 0.3, 1)" }}>
-        {dragTask && (
+        {dragTasks && dragTasks.length > 1 && <GroupDragOverlay tasks={dragTasks} />}
+        {dragTasks && dragTasks.length === 1 && (
           <div className="pointer-events-none rotate-[1.5deg] opacity-95">
-            <TaskCard task={dragTask} showProject />
+            <TaskCard task={dragTasks[0]} showProject />
           </div>
         )}
         {dragProject && (
@@ -360,6 +464,7 @@ export default function App() {
       <GoalDeadlineDialog />
       <CommandPalette />
       <Onboarding />
+      <BulkBar />
       <ConfirmDialog />
       <Toasts />
     </DndContext>

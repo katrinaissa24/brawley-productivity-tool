@@ -171,11 +171,11 @@ export function SprintView() {
                       value={backlogPriority}
                       onChange={setBacklogPriority}
                       placeholder="Any"
-                      className="h-[26px] w-[70px] text-[12px]"
+                      className="h-[26px] w-[88px] text-[12px]"
                       options={[
-                        { value: "P1", label: "P1" },
-                        { value: "P2", label: "P2" },
-                        { value: "P3", label: "P3" },
+                        { value: "P1", label: "High" },
+                        { value: "P2", label: "Medium" },
+                        { value: "P3", label: "Low" },
                       ]}
                     />
                   </div>

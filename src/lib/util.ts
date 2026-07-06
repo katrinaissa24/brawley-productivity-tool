@@ -180,6 +180,7 @@ export function hexToTriple(hex: string): string {
 }
 
 export const PROJECT_COLORS = [
+  // row 1
   "#6366F1", // indigo
   "#3B82F6", // blue
   "#0EA5E9", // sky
@@ -192,6 +193,19 @@ export const PROJECT_COLORS = [
   "#8B5CF6", // violet
   "#64748B", // slate
   "#A16207", // bronze
+  // row 2
+  "#84CC16", // lime
+  "#10B981", // emerald
+  "#06B6D4", // cyan
+  "#0369A1", // ocean
+  "#1E40AF", // navy
+  "#7C3AED", // purple
+  "#D946EF", // fuchsia
+  "#F43F5E", // rose
+  "#EAB308", // yellow
+  "#B45309", // caramel
+  "#78716C", // stone
+  "#334155", // charcoal
 ];
 
 export const ACCENT_COLORS: { name: string; hex: string }[] = [
@@ -205,23 +219,30 @@ export const ACCENT_COLORS: { name: string; hex: string }[] = [
   { name: "Graphite", hex: "#64748B" },
 ];
 
+// DB keeps 'P1' | 'P2' | 'P3'; the UI always speaks High / Medium / Low.
 export const PRIORITY_META: Record<Priority, { label: string; dot: string; chip: string }> = {
   P1: {
-    label: "P1",
+    label: "High",
     dot: "bg-red-500",
     chip: "text-red-600 dark:text-red-400 bg-red-500/10",
   },
   P2: {
-    label: "P2",
+    label: "Medium",
     dot: "bg-orange-500",
     chip: "text-orange-600 dark:text-orange-400 bg-orange-500/10",
   },
   P3: {
-    label: "P3",
+    label: "Low",
     dot: "bg-zinc-400",
     chip: "text-zinc-500 dark:text-zinc-400 bg-zinc-500/10",
   },
 };
+
+export const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
+  { value: "P1", label: "High" },
+  { value: "P2", label: "Medium" },
+  { value: "P3", label: "Low" },
+];
 
 export const DOW_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 export const DOW_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

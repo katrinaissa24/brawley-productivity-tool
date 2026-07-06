@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -57,6 +57,16 @@ export function InsightsView() {
 
   const [range, setRange] = useState<Range>("sprint");
   const [focusMode, setFocusMode] = useState<"count" | "minutes">("count");
+  const [trendHover, setTrendHover] = useState<{
+    x: number;
+    y: number;
+    date: string;
+    count: number;
+  } | null>(null);
+  const trendRef = useRef<HTMLDivElement>(null);
+  const trendFlip =
+    trendHover != null &&
+    trendHover.x > (trendRef.current?.clientWidth ?? 600) - 150;
 
   const sprint = activeSprint(sprints);
   const lastSprint = useMemo(
@@ -218,9 +228,32 @@ export function InsightsView() {
 
           {/* 5 — completion trend */}
           <ChartCard title="Completion trend" className="col-span-2">
-            <div className="h-[150px]">
+            <div ref={trendRef} className="relative h-[150px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+                <BarChart
+                  data={trend}
+                  margin={{ top: 4, right: 4, bottom: 0, left: 4 }}
+                  onMouseMove={(st) => {
+                    const s = st as {
+                      isTooltipActive?: boolean;
+                      activeLabel?: string | number;
+                      chartX?: number;
+                      chartY?: number;
+                      activePayload?: { value?: number }[];
+                    };
+                    if (s?.isTooltipActive && s.activeLabel != null && typeof s.chartX === "number") {
+                      setTrendHover({
+                        x: s.chartX,
+                        y: s.chartY ?? 0,
+                        date: String(s.activeLabel),
+                        count: Number(s.activePayload?.[0]?.value ?? 0),
+                      });
+                    } else {
+                      setTrendHover(null);
+                    }
+                  }}
+                  onMouseLeave={() => setTrendHover(null)}
+                >
                   <XAxis
                     dataKey="date"
                     tickFormatter={(d: string) => format(parseDateStr(d), trend.length > 40 ? "MMM d" : "EEE d")}
@@ -231,15 +264,43 @@ export function InsightsView() {
                     minTickGap={24}
                   />
                   <YAxis hide allowDecimals={false} domain={[0, "dataMax"]} />
-                  <Tooltip
-                    cursor={{ fill: dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }}
-                    contentStyle={tooltipStyle}
-                    labelFormatter={(d) => format(parseDateStr(String(d)), "EEE, MMM d")}
-                    formatter={(v: number) => [plural(v, "task"), "completed"]}
+                  {/* invisible tooltip keeps hover state alive; the visible box follows the mouse below */}
+                  <Tooltip content={() => null} cursor={false} isAnimationActive={false} />
+                  <Bar
+                    dataKey="count"
+                    fill={settings.accentColor}
+                    radius={[3, 3, 0, 0]}
+                    isAnimationActive={false}
+                    maxBarSize={26}
+                    activeBar={{
+                      fill: settings.accentColor,
+                      stroke: dark ? "#9d9da6" : "#82828c",
+                      strokeWidth: 1.5,
+                      radius: 4,
+                    }}
                   />
-                  <Bar dataKey="count" fill={settings.accentColor} radius={[3, 3, 0, 0]} isAnimationActive={false} maxBarSize={26} />
                 </BarChart>
               </ResponsiveContainer>
+              {trendHover && (
+                <div
+                  className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-bord bg-pop px-2.5 py-1.5 shadow-pop"
+                  style={{
+                    left: trendHover.x + (trendFlip ? -14 : 14),
+                    top: Math.max(2, trendHover.y - 48),
+                    transform: trendFlip ? "translateX(-100%)" : undefined,
+                    transition: "left 60ms linear, top 60ms linear",
+                  }}
+                >
+                  <p className="text-[11px] font-medium text-ink3">
+                    {format(parseDateStr(trendHover.date), "EEE, MMM d")}
+                  </p>
+                  <p className="text-[12.5px] font-semibold text-ink">
+                    {trendHover.count === 0
+                      ? "Nothing completed"
+                      : `${plural(trendHover.count, "task")} completed`}
+                  </p>
+                </div>
+              )}
             </div>
           </ChartCard>
 

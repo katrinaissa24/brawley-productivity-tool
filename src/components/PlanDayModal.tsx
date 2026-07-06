@@ -11,7 +11,7 @@ import { TaskChips } from "./TaskCard";
 const REASON_LABEL: Record<string, string> = {
   overdue: "Overdue",
   due_soon: "Due soon",
-  sprint_p1: "Sprint · P1",
+  sprint_p1: "Sprint · High",
   sprint: "Sprint",
   priority: "High priority",
 };

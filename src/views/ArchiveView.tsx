@@ -93,6 +93,47 @@ export function ArchiveView() {
               ]}
             />
           )}
+          {((tab === "tasks" && tasks.length > 0) ||
+            (tab === "projects" && projects.length > 0) ||
+            (tab === "goals" && goals.length > 0)) && (
+            <Button
+              variant="ghost"
+              className="ml-auto text-red-600 dark:text-red-400 hover:bg-red-500/10"
+              icon={<IconTrash size={12} />}
+              onClick={() => {
+                if (tab === "tasks") {
+                  const ids = tasks.map((t) => t.id);
+                  ask({
+                    title: `Delete ${ids.length} task${ids.length === 1 ? "" : "s"} permanently?`,
+                    message: `Everything currently listed${q.trim() ? " (matching your search)" : ""} will be gone for good. This cannot be undone.`,
+                    confirmLabel: "Delete all",
+                    danger: true,
+                    onConfirm: () => ids.forEach((id) => data.deleteTaskHard(id)),
+                  });
+                } else if (tab === "projects") {
+                  const ids = projects.map((p) => p.id);
+                  ask({
+                    title: `Delete ${ids.length} archived project${ids.length === 1 ? "" : "s"}?`,
+                    message: "Each project AND all of its tasks and goals will be permanently deleted. This cannot be undone.",
+                    confirmLabel: "Delete all",
+                    danger: true,
+                    onConfirm: () => ids.forEach((id) => data.deleteProjectHard(id)),
+                  });
+                } else {
+                  const ids = goals.map((g) => g.id);
+                  ask({
+                    title: `Delete ${ids.length} past goal${ids.length === 1 ? "" : "s"}?`,
+                    message: "Linked tasks are kept and unlinked. This cannot be undone.",
+                    confirmLabel: "Delete all",
+                    danger: true,
+                    onConfirm: () => ids.forEach((id) => data.deleteGoalHard(id)),
+                  });
+                }
+              }}
+            >
+              Delete all
+            </Button>
+          )}
         </div>
 
         <div className="mt-4 flex flex-col gap-1.5">

@@ -307,9 +307,9 @@ export function SettingsView() {
                       patch({ defaultPriority: v === "none" ? null : (v as Priority) })
                     }
                     options={[
-                      { value: "P1", label: "P1" },
-                      { value: "P2", label: "P2" },
-                      { value: "P3", label: "P3" },
+                      { value: "P1", label: "High" },
+                      { value: "P2", label: "Medium" },
+                      { value: "P3", label: "Low" },
                       { value: "none", label: "None" },
                     ]}
                   />

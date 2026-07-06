@@ -76,9 +76,15 @@ function ToastItem({ id, message, kind }: { id: number; message: string; kind: s
 
 export function Toasts() {
   const toasts = useUI((s) => s.toasts);
+  const bulkBarVisible = useUI((s) => s.selectedIds.length > 1);
   if (toasts.length === 0) return null;
   return createPortal(
-    <div className="pointer-events-none fixed bottom-5 left-1/2 z-[80] flex -translate-x-1/2 flex-col items-center gap-2">
+    <div
+      className={cn(
+        "pointer-events-none fixed left-1/2 z-[80] flex -translate-x-1/2 flex-col items-center gap-2",
+        bulkBarVisible ? "bottom-[68px]" : "bottom-5",
+      )}
+    >
       {toasts.map((t) => (
         <ToastItem key={t.id} {...t} />
       ))}
@@ -99,6 +105,9 @@ export function ProjectModal() {
   const addProject = useData((s) => s.addProject);
   const updateProject = useData((s) => s.updateProject);
   const archiveProject = useData((s) => s.archiveProject);
+
+  const deleteProjectHard = useData((s) => s.deleteProjectHard);
+  const tasks = useData((s) => s.tasks);
 
   const editing = modal?.projectId ? projects.find((p) => p.id === modal.projectId) : null;
   const [name, setName] = useState("");
@@ -153,7 +162,7 @@ export function ProjectModal() {
         </div>
         <div>
           <p className="mb-1.5 text-[12px] font-medium text-ink3">Color</p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="grid grid-cols-12 gap-y-2 justify-items-start">
             {PROJECT_COLORS.map((c) => (
               <button
                 key={c}
@@ -170,25 +179,49 @@ export function ProjectModal() {
       </div>
       <div className="flex items-center justify-between px-4 py-3 border-t border-bord">
         {editing ? (
-          <Button
-            variant="ghost"
-            onClick={() =>
-              ask({
-                title: "Archive project?",
-                message: `"${editing.name}" will be hidden from the sidebar. Its tasks are preserved and everything can be restored from Settings → Archive.`,
-                confirmLabel: "Archive",
-                onConfirm: () => {
-                  archiveProject(editing.id);
-                  setModal(null);
-                  if (view.name === "project" && view.projectId === editing.id) {
-                    go({ name: "today" });
-                  }
-                },
-              })
-            }
-          >
-            Archive project
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              onClick={() =>
+                ask({
+                  title: "Archive project?",
+                  message: `"${editing.name}" will be hidden from the sidebar. Its tasks are preserved and everything can be restored from Settings → Archive.`,
+                  confirmLabel: "Archive",
+                  onConfirm: () => {
+                    archiveProject(editing.id);
+                    setModal(null);
+                    if (view.name === "project" && view.projectId === editing.id) {
+                      go({ name: "today" });
+                    }
+                  },
+                })
+              }
+            >
+              Archive
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-red-600 dark:text-red-400 hover:bg-red-500/10"
+              onClick={() => {
+                const count = tasks.filter((t) => t.projectId === editing.id).length;
+                ask({
+                  title: "Delete project permanently?",
+                  message: `"${editing.name}"${count > 0 ? ` and its ${count} task${count === 1 ? "" : "s"}` : ""} will be gone for good — this cannot be undone. Archive instead if you might want it back.`,
+                  confirmLabel: "Delete forever",
+                  danger: true,
+                  onConfirm: () => {
+                    deleteProjectHard(editing.id);
+                    setModal(null);
+                    if (view.name === "project" && view.projectId === editing.id) {
+                      go({ name: "today" });
+                    }
+                  },
+                });
+              }}
+            >
+              Delete…
+            </Button>
+          </div>
         ) : (
           <span />
         )}
@@ -272,9 +305,9 @@ export function ClassifyPopover() {
             value={task.priority ?? "none"}
             onChange={(v) => updateTask(task.id, { priority: v === "none" ? null : (v as "P1") })}
             options={[
-              { value: "P1", label: "P1" },
-              { value: "P2", label: "P2" },
-              { value: "P3", label: "P3" },
+              { value: "P1", label: "High" },
+              { value: "P2", label: "Med" },
+              { value: "P3", label: "Low" },
               { value: "none", label: "—" },
             ]}
           />
