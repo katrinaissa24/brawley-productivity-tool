@@ -9,7 +9,8 @@ import { activeSprint, STATUS_LABEL, statusColumns } from "../stores/selectors";
 import { cn, plural } from "../lib/util";
 import { DroppableColumn, SortableTask } from "./dnd";
 import { TaskCard } from "./TaskCard";
-import { IconPlus } from "./icons";
+import { FloatingMenu, type MenuItem } from "./ui/primitives";
+import { IconArchive, IconPlus, IconTrash } from "./icons";
 
 function QuickAdd({ onAdd }: { onAdd: (title: string) => void }) {
   const [editing, setEditing] = useState(false);
@@ -91,10 +92,50 @@ export function TaskBoard({
     (s) => s.tasks.filter((t) => t.status === "in_progress" && !t.archivedAt).length,
   );
   const draggingIds = useUI((s) => s.draggingIds);
-  const retentionMs = settings.boardDoneRetentionDays * 864e5;
+  const [colMenu, setColMenu] = useState<{ x: number; y: number; label: string; tasks: Task[] } | null>(null);
+  const retentionDays = settings.boardDoneRetentionDays;
 
   const active = activeSprint(sprints);
   const statuses = statusColumns(settings.blockedEnabled);
+
+  const columnMenuItems = (label: string, colTasks: Task[]): MenuItem[] => {
+    const ui = useUI.getState();
+    const data = useData.getState();
+    const n = colTasks.length;
+    return [
+      {
+        label: `Archive all · ${n}`,
+        icon: <IconArchive size={14} />,
+        disabled: n === 0,
+        onSelect: () =>
+          ui.ask({
+            title: `Archive ${n} task${n === 1 ? "" : "s"}?`,
+            message: `Everything in "${label}" moves to the archive — restorable anytime from Settings → Archive.`,
+            confirmLabel: "Archive all",
+            onConfirm: () => {
+              for (const t of colTasks) data.archiveTask(t.id);
+              ui.toast(`Archived ${n} task${n === 1 ? "" : "s"}`, "success");
+            },
+          }),
+      },
+      {
+        label: `Delete all · ${n}`,
+        icon: <IconTrash size={14} />,
+        danger: true,
+        disabled: n === 0,
+        onSelect: () =>
+          ui.ask({
+            title: `Delete ${n} task${n === 1 ? "" : "s"} permanently?`,
+            message: `Everything in "${label}" will be gone for good. Archiving keeps things recoverable.`,
+            confirmLabel: "Delete all",
+            danger: true,
+            onConfirm: () => {
+              for (const t of colTasks) data.deleteTaskHard(t.id);
+            },
+          }),
+      },
+    ];
+  };
 
   const columns: ColumnSpec[] = [];
   if (projectBoard) {
@@ -157,18 +198,23 @@ export function TaskBoard({
     <div className="flex h-full min-w-0 gap-3 overflow-x-auto pb-2">
       {columns.map((col) => {
         let colTasks = tasks.filter(col.filter).sort((a, b) => a.sortOrder - b.sortOrder);
+        const allInColumn = colTasks;
         let hiddenDone = 0;
         if (col.status === "done") {
-          const all = colTasks;
-          colTasks = all
-            .filter(
-              (t) =>
-                t.completedAt &&
-                Date.now() - new Date(t.completedAt).getTime() <= Math.max(retentionMs, 0),
-            )
-            .sort((a, b) => ((a.completedAt ?? "") < (b.completedAt ?? "") ? 1 : -1));
-          if (settings.boardDoneRetentionDays === 0) colTasks = [];
-          hiddenDone = all.length - colTasks.length;
+          // Done stays visible until archived (default). A positive retention
+          // hides older completions; -1 hides them immediately.
+          colTasks =
+            retentionDays === 0
+              ? [...allInColumn]
+              : retentionDays < 0
+                ? []
+                : allInColumn.filter(
+                    (t) =>
+                      t.completedAt &&
+                      Date.now() - new Date(t.completedAt).getTime() <= retentionDays * 864e5,
+                  );
+          colTasks.sort((a, b) => ((a.completedAt ?? "") < (b.completedAt ?? "") ? 1 : -1));
+          hiddenDone = allInColumn.length - colTasks.length;
         }
         // Lifted (dragging) tasks stay mounted but leave the sortable order.
         const ids = colTasks.filter((t) => !draggingIds.includes(t.id)).map((t) => t.id);
@@ -192,7 +238,14 @@ export function TaskBoard({
                   isOver ? "border-accent/50 ring-2 ring-accent/20 bg-accent/[0.04]" : "border-bord/70",
                 )}
               >
-                <div className="flex items-center gap-2 px-3 pb-1 pt-2.5">
+                <div
+                  className="flex items-center gap-2 px-3 pb-1 pt-2.5"
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setColMenu({ x: e.clientX, y: e.clientY, label: col.label, tasks: allInColumn });
+                  }}
+                  title="Right-click for column actions"
+                >
                   <span className={cn("h-2 w-2 rounded-full", col.dot)} />
                   <span className="text-[12.5px] font-semibold text-ink2">{col.label}</span>
                   <span className="text-[11.5px] tabular-nums text-ink3">
@@ -232,6 +285,14 @@ export function TaskBoard({
           </DroppableColumn>
         );
       })}
+      {colMenu && (
+        <FloatingMenu
+          x={colMenu.x}
+          y={colMenu.y}
+          items={columnMenuItems(colMenu.label, colMenu.tasks)}
+          onClose={() => setColMenu(null)}
+        />
+      )}
     </div>
   );
 }

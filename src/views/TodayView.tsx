@@ -12,7 +12,7 @@ import {
   workloadMinutes,
 } from "../stores/selectors";
 import { cn, formatMinutes, plural, todayStr } from "../lib/util";
-import { SortableTask } from "../components/dnd";
+import { DroppableColumn, SortableTask } from "../components/dnd";
 import { TaskCard } from "../components/TaskCard";
 import { ViewShell } from "../components/ViewShell";
 import { Button, EmptyState, SectionLabel } from "../components/ui/primitives";
@@ -96,7 +96,7 @@ export function TodayView() {
         )}
 
         {dayCleared && (
-          <div className="anim-scale mt-6 rounded-xl border border-bord bg-card px-6 py-10 text-center shadow-card">
+          <div className="anim-scale mb-6 rounded-xl border border-bord bg-card px-6 py-8 text-center shadow-card">
             <IconCheckCircle size={34} className="mx-auto text-accent" />
             <p className="mt-3 text-[17px] font-semibold text-ink">Day cleared</p>
             <p className="mt-1 text-[13px] text-ink3">
@@ -107,72 +107,114 @@ export function TodayView() {
           </div>
         )}
 
-        <SortableContext items={openIds} strategy={noSortingStrategy}>
-          {(() => {
-            const notStarted = focus.filter((t) => t.status !== "in_progress");
-            const inProgress = focus.filter((t) => t.status === "in_progress");
-            const section = (label: string, list: typeof focus) =>
-              list.length > 0 && (
-                <div className="mb-5">
-                  <SectionLabel className="mb-2">
-                    {label} · {list.length}
-                  </SectionLabel>
-                  <div className="flex flex-col gap-2">
-                    {list.map((t) => (
-                      <SortableTask key={t.id} task={t} listIds={openIds}>
-                        <TaskCard task={t} showProject />
-                      </SortableTask>
-                    ))}
-                  </div>
-                </div>
-              );
-            return (
-              <>
-                {section("Not started", notStarted)}
-                {section("In progress", inProgress)}
-              </>
-            );
-          })()}
+        {(open.length > 0 || done.length > 0) && (
+          <>
+            <SortableContext items={openIds} strategy={noSortingStrategy}>
+              {(() => {
+                const notStarted = focus.filter((t) => t.status !== "in_progress");
+                const inProgress = focus.filter((t) => t.status === "in_progress");
+                const section = (
+                  label: string,
+                  status: "todo" | "in_progress",
+                  list: typeof focus,
+                  emptyHint: string,
+                ) => (
+                  <DroppableColumn
+                    key={status}
+                    id={`today:${status}`}
+                    status={status}
+                    sprintId={null}
+                    listIds={list.map((t) => t.id)}
+                  >
+                    {(isOver) => (
+                      <div
+                        className={cn(
+                          "mb-5 rounded-xl p-1 -m-1 transition-all duration-150",
+                          isOver && "ring-2 ring-accent/40 bg-accent/[0.04]",
+                        )}
+                      >
+                        <SectionLabel className="mb-2">
+                          {label} · {list.length}
+                        </SectionLabel>
+                        {list.length > 0 ? (
+                          <div className="flex flex-col gap-2">
+                            {list.map((t) => (
+                              <SortableTask key={t.id} task={t} listIds={openIds}>
+                                <TaskCard task={t} showProject />
+                              </SortableTask>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-bord2/70 px-4 py-3.5 text-[12.5px] text-ink3">
+                            {emptyHint}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </DroppableColumn>
+                );
+                return (
+                  <>
+                    {section("Not started", "todo", notStarted, "Nothing waiting — drag a task here to queue it.")}
+                    {section("In progress", "in_progress", inProgress, "Drag a task here to start working on it.")}
+                  </>
+                );
+              })()}
 
-          {later.length > 0 && (
-            <div className="mt-1">
-              <button
-                onClick={() => setLaterOpen(!laterOpen)}
-                className="flex items-center gap-1.5 text-[12.5px] font-medium text-ink3 hover:text-ink2 transition-colors"
-              >
-                {laterOpen ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
-                Later today · {later.length}
-              </button>
-              {laterOpen && (
-                <div className="mt-2 flex flex-col gap-2 opacity-80">
-                  {later.map((t) => (
-                    <SortableTask key={t.id} task={t} listIds={openIds}>
-                      <TaskCard task={t} showProject dense />
-                    </SortableTask>
-                  ))}
+              {later.length > 0 && (
+                <div className="mt-1 mb-5">
+                  <button
+                    onClick={() => setLaterOpen(!laterOpen)}
+                    className="flex items-center gap-1.5 text-[12.5px] font-medium text-ink3 hover:text-ink2 transition-colors"
+                  >
+                    {laterOpen ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+                    Later today · {later.length}
+                  </button>
+                  {laterOpen && (
+                    <div className="mt-2 flex flex-col gap-2 opacity-80">
+                      {later.map((t) => (
+                        <SortableTask key={t.id} task={t} listIds={openIds}>
+                          <TaskCard task={t} showProject dense />
+                        </SortableTask>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-        </SortableContext>
+            </SortableContext>
 
-        {done.length > 0 && !dayCleared && (
-          <div className="mt-7">
-            <button
-              onClick={() => setDoneOpen(!doneOpen)}
-              className="flex items-center gap-1.5 mb-2"
-            >
-              {doneOpen ? <IconChevronDown size={13} className="text-ink3" /> : <IconChevronRight size={13} className="text-ink3" />}
-              <SectionLabel>Done · {done.length}</SectionLabel>
-            </button>
-            {doneOpen && (
-              <div className={cn("flex flex-col gap-2")}>
-                {done.map((t) => (
-                  <TaskCard key={t.id} task={t} showProject dense />
-                ))}
-              </div>
-            )}
-          </div>
+            <DroppableColumn id="today:done" status="done" sprintId={null} listIds={[]}>
+              {(isOver) => (
+                <div
+                  className={cn(
+                    "mt-2 rounded-xl p-1 -m-1 transition-all duration-150",
+                    isOver && "ring-2 ring-accent/40 bg-accent/[0.04]",
+                  )}
+                >
+                  <button onClick={() => setDoneOpen(!doneOpen)} className="mb-2 flex items-center gap-1.5">
+                    {doneOpen ? (
+                      <IconChevronDown size={13} className="text-ink3" />
+                    ) : (
+                      <IconChevronRight size={13} className="text-ink3" />
+                    )}
+                    <SectionLabel>Done · {done.length}</SectionLabel>
+                  </button>
+                  {doneOpen &&
+                    (done.length > 0 ? (
+                      <div className="flex flex-col gap-2">
+                        {done.map((t) => (
+                          <TaskCard key={t.id} task={t} showProject dense />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-bord2/70 px-4 py-3.5 text-[12.5px] text-ink3">
+                        Drag a task here to complete it — today's wins stay visible until midnight.
+                      </div>
+                    ))}
+                </div>
+              )}
+            </DroppableColumn>
+          </>
         )}
       </div>
     </ViewShell>

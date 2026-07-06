@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { SortableContext } from "@dnd-kit/sortable";
 import { noSortingStrategy } from "../lib/collision";
 import { useData } from "../stores/data";
+import { useSettings } from "../stores/settings";
 import { useUI } from "../stores/ui";
 import {
   activeProjects,
@@ -33,6 +34,8 @@ export function SprintView() {
   const projects = useData((s) => s.projects);
   const sprints = useData((s) => s.sprints);
   const commitToSprint = useData((s) => s.commitToSprint);
+  const addTask = useData((s) => s.addTask);
+  const settings = useSettings((s) => s.settings);
   const go = useUI((s) => s.go);
   const setReviewOpen = useUI((s) => s.setReviewOpen);
   const backlogOpen = useUI((s) => s.backlogOpen);
@@ -126,14 +129,18 @@ export function SprintView() {
 
       <div className="flex min-h-0 flex-1 gap-0 px-8 pb-8">
         <div className="min-w-0 flex-1">
-          {committed.length === 0 ? (
-            <EmptyState
-              icon={<IconZap size={28} />}
-              title="Nothing committed yet"
-              hint="Drag tasks in from the backlog on the right — commit only what fits the week."
-            />
-          ) : (
-            <TaskBoard tasks={committed} sprintId={sprint.id} showProject />
+          <TaskBoard
+            tasks={committed}
+            sprintId={sprint.id}
+            showProject
+            onQuickAdd={(title) =>
+              addTask({ title, sprintId: sprint.id, priority: settings.defaultPriority })
+            }
+          />
+          {committed.length === 0 && (
+            <p className="mt-3 text-center text-[12.5px] text-ink3">
+              Nothing committed yet — drag tasks in from the backlog on the right, or add one above.
+            </p>
           )}
         </div>
 

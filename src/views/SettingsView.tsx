@@ -363,17 +363,18 @@ export function SettingsView() {
                   />
                 </Row>
                 <Row
-                  label="Show completed on boards"
-                  desc="How long finished tasks stay visible in the Done column."
+                  label="Completed tasks on boards"
+                  desc="Done columns keep your finished work visible until you archive it — or hide it automatically."
                 >
                   <Select
                     value={String(settings.boardDoneRetentionDays)}
                     onChange={(v) => patch({ boardDoneRetentionDays: Number(v) })}
                     options={[
-                      { value: "0", label: "Hide immediately" },
-                      { value: "1", label: "1 day" },
-                      { value: "3", label: "3 days" },
-                      { value: "7", label: "7 days" },
+                      { value: "0", label: "Show until archived" },
+                      { value: "1", label: "Hide after 1 day" },
+                      { value: "3", label: "Hide after 3 days" },
+                      { value: "7", label: "Hide after 7 days" },
+                      { value: "-1", label: "Hide immediately" },
                     ]}
                   />
                 </Row>
