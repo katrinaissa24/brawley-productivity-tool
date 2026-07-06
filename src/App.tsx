@@ -32,6 +32,7 @@ import { GoalDeadlineDialog, useGoalDeadlines } from "./components/GoalDeadlineD
 import { CommandPalette } from "./components/CommandPalette";
 import { Onboarding } from "./components/Onboarding";
 import { BulkBar, confirmDeleteTasks } from "./components/BulkBar";
+import { BreakdownModal } from "./components/BreakdownModal";
 import { InboxView } from "./views/InboxView";
 import { TodayView } from "./views/TodayView";
 import { ProjectView } from "./views/ProjectView";
@@ -354,12 +355,17 @@ export default function App() {
       .map((id) => data.tasks.find((x) => x.id === id))
       .filter(Boolean) as Task[];
 
-    /** Set status (and sprint) on every dragged task; toast once if WIP blocks some. */
-    const adoptContainer = (status: Task["status"], sprintId: string | null): Task[] => {
+    /** Set status (and sprint membership) on every dragged task; toast once if WIP blocks some. */
+    const adoptContainer = (
+      status: Task["status"],
+      sprintId: string | null,
+      unassign?: boolean,
+    ): Task[] => {
       const moved: Task[] = [];
       let blockedMsg: string | null = null;
       for (const task of group) {
         if (sprintId && task.sprintId !== sprintId) data.commitToSprint(task.id, sprintId);
+        if (unassign && task.sprintId) data.removeFromSprint(task.id);
         if (task.status !== status) {
           const r = data.trySetStatus(task.id, status);
           if (!r.ok) {
@@ -396,7 +402,7 @@ export default function App() {
     }
 
     if (o.type === "column") {
-      const moved = adoptContainer(o.status, o.sprintId);
+      const moved = adoptContainer(o.status, o.sprintId, o.unassign);
       // append at the end of the column, keeping the dragged order
       const lastId = o.listIds.filter((id) => !groupIds.includes(id)).pop();
       const last = lastId ? data.tasks.find((x) => x.id === lastId) : undefined;
@@ -522,6 +528,7 @@ export default function App() {
       <CommandPalette />
       <Onboarding />
       <BulkBar />
+      <BreakdownModal />
       <ConfirmDialog />
       <Toasts />
     </DndContext>

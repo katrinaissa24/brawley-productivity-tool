@@ -160,11 +160,26 @@ export function ProjectModal() {
   const custom = !isPresetColor(color);
   const colorForWheel = normalizeHex(color) ?? "#6366F1";
 
+  /** Edit mode saves automatically — closing commits whatever was typed. */
+  const commitLive = (patch: { name?: string; color?: string; icon?: string }) => {
+    if (!editing) return;
+    updateProject(editing.id, {
+      ...(patch.name !== undefined ? { name: patch.name.trim() || editing.name } : {}),
+      ...(patch.color !== undefined ? { color: patch.color } : {}),
+      ...(patch.icon !== undefined ? { icon: patch.icon.trim() || null } : {}),
+    });
+  };
+
+  const close = () => {
+    if (editing) commitLive({ name, icon });
+    setModal(null);
+  };
+
   const save = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (editing) {
-      updateProject(editing.id, { name: trimmed, color, icon: icon.trim() || null });
+      commitLive({ name, color, icon });
     } else {
       const p = addProject({ name: trimmed, color, icon: icon.trim() || null });
       go({ name: "project", projectId: p.id });
@@ -173,10 +188,11 @@ export function ProjectModal() {
   };
 
   return (
-    <Modal open onClose={() => setModal(null)} width={420}>
+    <Modal open onClose={close} width={420}>
       <ModalHeader
         title={editing ? "Edit project" : "New project"}
-        onClose={() => setModal(null)}
+        subtitle={editing ? "Changes save automatically" : undefined}
+        onClose={close}
       />
       <div className="flex flex-col gap-4 px-4 py-3">
         <div className="flex gap-2">
@@ -184,12 +200,17 @@ export function ProjectModal() {
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && save()}
+            onBlur={() => commitLive({ name })}
+            onKeyDown={(e) => e.key === "Enter" && (editing ? close() : save())}
             placeholder="Project name"
           />
           <TextInput
             value={icon}
-            onChange={(e) => setIcon(e.target.value.slice(0, 2))}
+            onChange={(e) => {
+              const v = e.target.value.slice(0, 2);
+              setIcon(v);
+              commitLive({ icon: v });
+            }}
             placeholder="⌘"
             title="Optional icon (emoji)"
             className="w-[52px] text-center"
@@ -201,7 +222,10 @@ export function ProjectModal() {
             {PROJECT_COLORS.map((c) => (
               <button
                 key={c}
-                onClick={() => pickColor(c)}
+                onClick={() => {
+                  pickColor(c);
+                  commitLive({ color: c });
+                }}
                 className={cn(
                   "h-6 w-6 rounded-full transition-transform hover:scale-110",
                   color.toLowerCase() === c.toLowerCase() &&
@@ -227,7 +251,10 @@ export function ProjectModal() {
               <input
                 type="color"
                 value={colorForWheel}
-                onChange={(e) => pickColor(e.target.value)}
+                onChange={(e) => {
+                  pickColor(e.target.value);
+                  commitLive({ color: normalizeHex(e.target.value) ?? e.target.value });
+                }}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               />
             </label>
@@ -242,7 +269,10 @@ export function ProjectModal() {
                   const raw = e.target.value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6);
                   setHexInput(raw);
                   const norm = normalizeHex(raw);
-                  if (norm) setColor(norm);
+                  if (norm) {
+                    setColor(norm);
+                    commitLive({ color: norm });
+                  }
                 }}
                 onBlur={() => setHexInput(color.replace(/^#/, ""))}
                 placeholder="6366F1"
@@ -301,14 +331,20 @@ export function ProjectModal() {
         ) : (
           <span />
         )}
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => setModal(null)}>
-            Cancel
+        {editing ? (
+          <Button variant="secondary" onClick={close}>
+            Done
           </Button>
-          <Button variant="primary" onClick={save} disabled={!name.trim()}>
-            {editing ? "Save" : "Create project"}
-          </Button>
-        </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={close}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={save} disabled={!name.trim()}>
+              Create project
+            </Button>
+          </div>
+        )}
       </div>
     </Modal>
   );

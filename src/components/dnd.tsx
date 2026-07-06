@@ -15,7 +15,15 @@ export type DropData =
   | { type: "task"; task: Task; listIds: string[] }
   | { type: "project-row"; projectId: string }
   | { type: "project"; projectId: string }
-  | { type: "column"; status: TaskStatus; sprintId: string | null; listIds: string[] }
+  | {
+      type: "column";
+      status: TaskStatus;
+      /** Commit dropped tasks to this sprint (project To Do / sprint columns). */
+      sprintId: string | null;
+      /** Remove dropped tasks from their sprint (project Backlog column). */
+      unassign?: boolean;
+      listIds: string[];
+    }
   | { type: "backlog" };
 
 /** Sortable wrapper for task cards inside ordered lists / board columns. */
@@ -54,21 +62,25 @@ export function SortableTask({
 
 /** Board column droppable area. */
 export function DroppableColumn({
+  id,
   status,
   sprintId,
+  unassign,
   listIds,
   children,
   className,
 }: {
+  id: string;
   status: TaskStatus;
   sprintId: string | null;
+  unassign?: boolean;
   listIds: string[];
   children: (isOver: boolean) => ReactNode;
   className?: string;
 }) {
   const { setNodeRef, isOver, active } = useDroppable({
-    id: `col:${sprintId ?? "project"}:${status}`,
-    data: { type: "column", status, sprintId, listIds } satisfies DropData,
+    id: `col:${id}`,
+    data: { type: "column", status, sprintId, unassign, listIds } satisfies DropData,
   });
   const taskOver = isOver && active?.data.current?.type === "task";
   return (

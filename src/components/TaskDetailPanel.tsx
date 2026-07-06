@@ -220,6 +220,32 @@ export function TaskDetailPanel() {
     }
   }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Never lose typed text: whatever is in the title/notes fields is committed
+  // when the panel closes or switches to another task — not just on Enter/blur.
+  const pendingRef = useRef<{ id: string | null; title: string; notes: string }>({
+    id: null,
+    title: "",
+    notes: "",
+  });
+  useEffect(() => {
+    pendingRef.current = { id: task?.id ?? null, title, notes };
+  });
+  useEffect(() => {
+    return () => {
+      const p = pendingRef.current;
+      if (!p.id) return;
+      const data = useData.getState();
+      const cur = data.tasks.find((x) => x.id === p.id);
+      if (!cur) return;
+      const patch: Partial<typeof cur> = {};
+      const t = p.title.trim();
+      if (t && t !== cur.title) patch.title = t;
+      const n = p.notes.trim() || null;
+      if (n !== (cur.notes ?? null)) patch.notes = n;
+      if (Object.keys(patch).length) data.updateTask(p.id, patch);
+    };
+  }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const el = titleRef.current;
     if (el) {

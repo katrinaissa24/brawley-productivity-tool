@@ -21,6 +21,7 @@ import {
   IconClock,
   IconFlag,
   IconFolder,
+  IconPause,
   IconRepeat,
   IconSun,
   IconTarget,
@@ -85,6 +86,14 @@ export function taskMenuItems(task: Task): MenuItem[] {
       },
     ],
   });
+
+  if (task.status !== "done" && task.title.trim().split(/\s+/).length >= 2) {
+    items.push({
+      label: "Break down…",
+      icon: <IconPause size={14} />,
+      onSelect: () => ui.setBreakdownTaskId(task.id),
+    });
+  }
 
   items.push({
     label: "Set priority",

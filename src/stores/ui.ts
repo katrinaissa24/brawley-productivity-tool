@@ -84,6 +84,10 @@ interface UIState {
   goalDeadlineQueue: string[];
   queueGoalDeadlines(ids: string[]): void;
   shiftGoalDeadline(): void;
+
+  /** Task currently open in the break-down (split) modal. */
+  breakdownTaskId: string | null;
+  setBreakdownTaskId(id: string | null): void;
 }
 
 let toastSeq = 1;
@@ -184,6 +188,11 @@ export const useUI = create<UIState>((set, get) => ({
   goalModal: null,
   setGoalModal(v) {
     set({ goalModal: v });
+  },
+
+  breakdownTaskId: null,
+  setBreakdownTaskId(id) {
+    set({ breakdownTaskId: id });
   },
 
   goalDeadlineQueue: [],

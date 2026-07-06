@@ -5,7 +5,7 @@ import type { Task, TaskStatus } from "../types";
 import { useData } from "../stores/data";
 import { useSettings } from "../stores/settings";
 import { useUI } from "../stores/ui";
-import { STATUS_LABEL, statusColumns } from "../stores/selectors";
+import { activeSprint, STATUS_LABEL, statusColumns } from "../stores/selectors";
 import { cn, plural } from "../lib/util";
 import { DroppableColumn, SortableTask } from "./dnd";
 import { TaskCard } from "./TaskCard";
@@ -54,37 +54,111 @@ function QuickAdd({ onAdd }: { onAdd: (title: string) => void }) {
   );
 }
 
+interface ColumnSpec {
+  key: string;
+  label: string;
+  status: TaskStatus;
+  dot: string;
+  sprintId: string | null;
+  unassign?: boolean;
+  quickAdd?: boolean;
+  filter: (t: Task) => boolean;
+}
+
 /**
  * Status-column board shared by Project and Sprint views.
  * `tasks` should already be scoped (project or sprint) and exclude archived.
+ *
+ * Project boards (`projectBoard`) get a leading Backlog column: To Do means
+ * "committed to the active sprint"; Backlog is everything not yet committed.
  */
 export function TaskBoard({
   tasks,
   sprintId,
   showProject,
+  projectBoard,
   onQuickAdd,
 }: {
   tasks: Task[];
   sprintId: string | null;
   showProject?: boolean;
+  projectBoard?: boolean;
   onQuickAdd?: (title: string, status: TaskStatus) => void;
 }) {
   const settings = useSettings((s) => s.settings);
-  const wipCount = useData((s) =>
-    s.tasks.filter((t) => t.status === "in_progress" && !t.archivedAt).length,
+  const sprints = useData((s) => s.sprints);
+  const wipCount = useData(
+    (s) => s.tasks.filter((t) => t.status === "in_progress" && !t.archivedAt).length,
   );
   const draggingIds = useUI((s) => s.draggingIds);
-  const columns = statusColumns(settings.blockedEnabled);
   const retentionMs = settings.boardDoneRetentionDays * 864e5;
+
+  const active = activeSprint(sprints);
+  const statuses = statusColumns(settings.blockedEnabled);
+
+  const columns: ColumnSpec[] = [];
+  if (projectBoard) {
+    columns.push({
+      key: "backlog",
+      label: "Backlog",
+      status: "todo",
+      dot: "bg-zinc-300 dark:bg-zinc-600",
+      sprintId: null,
+      unassign: true,
+      quickAdd: true,
+      filter: (t) => t.status === "todo" && (!active || t.sprintId !== active.id),
+    });
+    columns.push({
+      key: "todo",
+      label: STATUS_LABEL.todo,
+      status: "todo",
+      dot: "bg-zinc-400",
+      sprintId: active?.id ?? null,
+      filter: (t) => t.status === "todo" && !!active && t.sprintId === active.id,
+    });
+    for (const st of statuses) {
+      if (st === "todo") continue;
+      columns.push({
+        key: st,
+        label: STATUS_LABEL[st],
+        status: st,
+        dot:
+          st === "in_progress"
+            ? "bg-accent"
+            : st === "blocked"
+              ? "bg-red-500"
+              : "bg-emerald-500",
+        sprintId: active?.id ?? null,
+        filter: (t) => t.status === st,
+      });
+    }
+  } else {
+    for (const st of statuses) {
+      columns.push({
+        key: st,
+        label: STATUS_LABEL[st],
+        status: st,
+        dot:
+          st === "todo"
+            ? "bg-zinc-400"
+            : st === "in_progress"
+              ? "bg-accent"
+              : st === "blocked"
+                ? "bg-red-500"
+                : "bg-emerald-500",
+        sprintId,
+        quickAdd: st === "todo",
+        filter: (t) => t.status === st,
+      });
+    }
+  }
 
   return (
     <div className="flex h-full min-w-0 gap-3 overflow-x-auto pb-2">
-      {columns.map((status) => {
-        let colTasks = tasks
-          .filter((t) => t.status === status)
-          .sort((a, b) => a.sortOrder - b.sortOrder);
+      {columns.map((col) => {
+        let colTasks = tasks.filter(col.filter).sort((a, b) => a.sortOrder - b.sortOrder);
         let hiddenDone = 0;
-        if (status === "done") {
+        if (col.status === "done") {
           const all = colTasks;
           colTasks = all
             .filter(
@@ -99,13 +173,15 @@ export function TaskBoard({
         // Lifted (dragging) tasks stay mounted but leave the sortable order.
         const ids = colTasks.filter((t) => !draggingIds.includes(t.id)).map((t) => t.id);
         const atWip =
-          status === "in_progress" && settings.wipLimitEnabled && wipCount >= settings.wipLimit;
+          col.status === "in_progress" && settings.wipLimitEnabled && wipCount >= settings.wipLimit;
 
         return (
           <DroppableColumn
-            key={status}
-            status={status}
-            sprintId={sprintId}
+            key={col.key}
+            id={`${projectBoard ? "pb" : "sb"}:${col.key}`}
+            status={col.status}
+            sprintId={col.sprintId}
+            unassign={col.unassign}
             listIds={ids}
             className="flex h-full w-[272px] shrink-0 flex-col"
           >
@@ -117,20 +193,12 @@ export function TaskBoard({
                 )}
               >
                 <div className="flex items-center gap-2 px-3 pb-1 pt-2.5">
-                  <span
-                    className={cn(
-                      "h-2 w-2 rounded-full",
-                      status === "todo" && "bg-zinc-400",
-                      status === "in_progress" && "bg-accent",
-                      status === "blocked" && "bg-red-500",
-                      status === "done" && "bg-emerald-500",
-                    )}
-                  />
-                  <span className="text-[12.5px] font-semibold text-ink2">{STATUS_LABEL[status]}</span>
+                  <span className={cn("h-2 w-2 rounded-full", col.dot)} />
+                  <span className="text-[12.5px] font-semibold text-ink2">{col.label}</span>
                   <span className="text-[11.5px] tabular-nums text-ink3">
-                    {status === "done" ? colTasks.length + hiddenDone : colTasks.length}
+                    {col.status === "done" ? colTasks.length + hiddenDone : colTasks.length}
                   </span>
-                  {status === "in_progress" && settings.wipLimitEnabled && (
+                  {col.status === "in_progress" && settings.wipLimitEnabled && (
                     <span
                       className={cn(
                         "ml-auto rounded-md px-1.5 py-0.5 text-[10.5px] font-medium",
@@ -149,13 +217,13 @@ export function TaskBoard({
                         <TaskCard task={t} showProject={showProject} />
                       </SortableTask>
                     ))}
-                    {status === "done" && hiddenDone > 0 && (
+                    {col.status === "done" && hiddenDone > 0 && (
                       <p className="px-2 py-1.5 text-[11.5px] leading-relaxed text-ink3">
                         {plural(hiddenDone, "completed task")} tucked away — see Settings → Archive.
                       </p>
                     )}
-                    {status === "todo" && onQuickAdd && (
-                      <QuickAdd onAdd={(title) => onQuickAdd(title, status)} />
+                    {col.quickAdd && onQuickAdd && (
+                      <QuickAdd onAdd={(title) => onQuickAdd(title, col.status)} />
                     )}
                   </div>
                 </SortableContext>

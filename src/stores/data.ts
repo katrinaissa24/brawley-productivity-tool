@@ -96,6 +96,10 @@ interface DataState {
     reflections: string | null;
     snapshot: ReviewSnapshot;
   }): void;
+  deleteReview(id: string): void;
+
+  /** Split a task's title into N parts; part 1 keeps the original task. */
+  splitTask(id: string, titles: string[]): void;
 
   insertDemoData(): void;
 }
@@ -248,6 +252,15 @@ export const useData = create<DataState>((set, get) => ({
     }
     if (status === "done") {
       get().completeTask(id);
+      return { ok: true };
+    }
+    // Invariant: an in-progress task always belongs to the active sprint.
+    if (status === "in_progress") {
+      const active = get().sprints.find((sp) => sp.status === "active");
+      get().updateTask(id, {
+        status,
+        ...(active && cur.sprintId !== active.id ? { sprintId: active.id } : {}),
+      });
       return { ok: true };
     }
     get().updateTask(id, { status });
@@ -514,27 +527,42 @@ export const useData = create<DataState>((set, get) => ({
   },
 
   ensureActiveSprint() {
-    const active = get().sprints.find((sp) => sp.status === "active");
-    if (active) return;
-    const st = useSettings.getState().settings;
-    const today = new Date();
-    const diff = (today.getDay() - st.sprintStartDow + 7) % 7;
-    const start = new Date(today);
-    start.setDate(start.getDate() - diff);
-    const startStr = toDateStr(start);
-    const endStr = addDaysStr(startStr, Math.max(1, st.sprintLengthDays) - 1);
-    const now = nowISO();
-    const sp: Sprint = {
-      id: uuid(),
-      startDate: startStr,
-      endDate: endStr,
-      status: "active",
-      reviewCompletedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    set((s) => ({ sprints: [...s.sprints, sp] }));
-    persist(() => repo.upsertSprint(sp));
+    let active = get().sprints.find((sp) => sp.status === "active");
+    if (!active) {
+      const st = useSettings.getState().settings;
+      const today = new Date();
+      const diff = (today.getDay() - st.sprintStartDow + 7) % 7;
+      const start = new Date(today);
+      start.setDate(start.getDate() - diff);
+      const startStr = toDateStr(start);
+      const endStr = addDaysStr(startStr, Math.max(1, st.sprintLengthDays) - 1);
+      const now = nowISO();
+      const sp: Sprint = {
+        id: uuid(),
+        startDate: startStr,
+        endDate: endStr,
+        status: "active",
+        reviewCompletedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      set((s) => ({ sprints: [...s.sprints, sp] }));
+      persist(() => repo.upsertSprint(sp));
+      active = sp;
+    }
+    // Reconcile the invariant for existing data: every open in-progress task
+    // belongs to the active sprint (fixes phantom WIP counts).
+    const sprintId = active.id;
+    const strays = get().tasks.filter(
+      (t) => t.status === "in_progress" && !t.archivedAt && t.sprintId !== sprintId,
+    );
+    if (strays.length) {
+      const now = nowISO();
+      const updated = strays.map((t) => ({ ...t, sprintId, updatedAt: now }));
+      const byId = new Map(updated.map((t) => [t.id, t]));
+      set((s) => ({ tasks: s.tasks.map((t) => byId.get(t.id) ?? t) }));
+      persist(() => Promise.all(updated.map((t) => repo.upsertTask(t))));
+    }
   },
 
   commitToSprint(taskId, sprintId) {
@@ -542,7 +570,12 @@ export const useData = create<DataState>((set, get) => ({
   },
 
   removeFromSprint(taskId) {
-    get().updateTask(taskId, { sprintId: null });
+    const t = get().tasks.find((x) => x.id === taskId);
+    // Leaving the sprint also leaves "in progress" — WIP lives inside sprints.
+    get().updateTask(taskId, {
+      sprintId: null,
+      ...(t?.status === "in_progress" ? { status: "todo" as const } : {}),
+    });
   },
 
   finishReview(args) {
@@ -582,7 +615,13 @@ export const useData = create<DataState>((set, get) => ({
       const d = args.decisions[t.id] ?? "rollover";
       if (d === "rollover") taskWrites.set(t.id, { ...t, sprintId: next.id, updatedAt: now });
       else if (d === "backlog")
-        taskWrites.set(t.id, { ...t, sprintId: null, doDate: null, updatedAt: now });
+        taskWrites.set(t.id, {
+          ...t,
+          sprintId: null,
+          doDate: null,
+          status: t.status === "in_progress" ? "todo" : t.status,
+          updatedAt: now,
+        });
       else taskWrites.set(t.id, { ...t, sprintId: null, archivedAt: now, updatedAt: now });
     }
     for (const id of args.pickedTaskIds) {
@@ -612,6 +651,48 @@ export const useData = create<DataState>((set, get) => ({
         repo.insertReview(review),
       ]),
     );
+  },
+
+  deleteReview(id) {
+    set((s) => ({ reviews: s.reviews.filter((r) => r.id !== id) }));
+    persist(() => repo.deleteRow("reviews", id));
+  },
+
+  splitTask(id, titles) {
+    const t = get().tasks.find((x) => x.id === id);
+    const parts = titles.map((x) => x.trim()).filter(Boolean);
+    if (!t || parts.length < 2) return;
+    const now = nowISO();
+    const perEstimate =
+      t.estimateMinutes != null && t.estimateMinutes > 0
+        ? Math.max(1, Math.round(t.estimateMinutes / parts.length))
+        : null;
+    const first: Task = {
+      ...t,
+      title: parts[0],
+      estimateMinutes: perEstimate ?? t.estimateMinutes,
+      updatedAt: now,
+    };
+    const rest: Task[] = parts.slice(1).map((title, k) => ({
+      ...t,
+      id: uuid(),
+      title,
+      notes: null,
+      recurrence: null,
+      // Splitting one in-progress task must not multiply WIP.
+      status: t.status === "in_progress" ? "todo" : t.status,
+      estimateMinutes: perEstimate,
+      sortOrder: t.sortOrder + k + 1,
+      completedAt: null,
+      archivedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    set((s) => ({
+      tasks: [...s.tasks.map((x) => (x.id === id ? first : x)), ...rest],
+    }));
+    persist(() => Promise.all([first, ...rest].map((x) => repo.upsertTask(x))));
+    useUI.getState().toast(`Split into ${parts.length} tasks`, "success");
   },
 
   insertDemoData() {

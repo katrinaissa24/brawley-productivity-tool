@@ -9,7 +9,7 @@ import { cn, plural } from "../lib/util";
 import { ViewShell } from "../components/ViewShell";
 import { ReviewWizard } from "./ReviewWizard";
 import { Button, EmptyState, SectionLabel } from "../components/ui/primitives";
-import { IconCheckCircle, IconChevronDown, IconChevronRight, IconSparkle } from "../components/icons";
+import { IconCheckCircle, IconChevronDown, IconChevronRight, IconSparkle, IconTrash } from "../components/icons";
 
 const MARK_STYLE: Record<string, string> = {
   on_track: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
@@ -24,6 +24,8 @@ const MARK_LABEL: Record<string, string> = {
 
 function PastReview({ review }: { review: Review }) {
   const [open, setOpen] = useState(false);
+  const ask = useUI((s) => s.ask);
+  const deleteReview = useData((s) => s.deleteReview);
   let snap: ReviewSnapshot | null = null;
   try {
     snap = JSON.parse(review.goalsSnapshot) as ReviewSnapshot;
@@ -31,7 +33,7 @@ function PastReview({ review }: { review: Review }) {
     snap = null;
   }
   return (
-    <div className="rounded-xl border border-bord bg-card shadow-card">
+    <div className="group rounded-xl border border-bord bg-card shadow-card">
       <button onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
         {open ? <IconChevronDown size={14} className="text-ink3" /> : <IconChevronRight size={14} className="text-ink3" />}
         <span className="flex-1 text-[13.5px] font-medium text-ink">
@@ -44,6 +46,23 @@ function PastReview({ review }: { review: Review }) {
         )}
         <span className="text-[11.5px] text-ink3">
           {format(new Date(review.createdAt), "MMM d, yyyy")}
+        </span>
+        <span
+          role="button"
+          title="Delete review"
+          onClick={(e) => {
+            e.stopPropagation();
+            ask({
+              title: "Delete this review?",
+              message: "The recap, goal check-ins, and reflections from this review will be permanently deleted.",
+              confirmLabel: "Delete",
+              danger: true,
+              onConfirm: () => deleteReview(review.id),
+            });
+          }}
+          className="rounded-md p-1 text-ink3 opacity-0 transition-all hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
+        >
+          <IconTrash size={13} />
         </span>
       </button>
       {open && (

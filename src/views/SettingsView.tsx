@@ -234,7 +234,7 @@ export function SettingsView() {
                 </Row>
               </Card>
               <Card title="Sprints">
-                <Row label="Sprint length" desc="Applied when the next sprint is created.">
+                <Row label="Duration" desc="Applied when the next sprint is created.">
                   <div className="flex items-center gap-2">
                     <Select
                       value={[7, 14, 21, 28].includes(settings.sprintLengthDays) ? String(settings.sprintLengthDays) : "custom"}
@@ -260,12 +260,34 @@ export function SettingsView() {
                     )}
                   </div>
                 </Row>
-                <Row label="Sprint starts on">
+                <Row label="Starts on">
                   <Select
                     value={String(settings.sprintStartDow)}
                     onChange={(v) => patch({ sprintStartDow: Number(v) })}
                     options={DOW_LABELS.map((d, i) => ({ value: String(i), label: d }))}
                   />
+                </Row>
+                <Row
+                  label="Ends on"
+                  desc="Picking an end day sets a duration within one week."
+                >
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={String((settings.sprintStartDow + settings.sprintLengthDays - 1) % 7)}
+                      onChange={(v) =>
+                        patch({
+                          sprintLengthDays:
+                            ((Number(v) - settings.sprintStartDow + 7) % 7) + 1,
+                        })
+                      }
+                      options={DOW_LABELS.map((d, i) => ({ value: String(i), label: d }))}
+                    />
+                    {settings.sprintLengthDays > 7 && (
+                      <span className="text-[11.5px] text-ink3">
+                        +{Math.floor((settings.sprintLengthDays - 1) / 7)}w
+                      </span>
+                    )}
+                  </div>
                 </Row>
               </Card>
             </>

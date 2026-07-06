@@ -5,6 +5,7 @@ import { useSettings } from "../stores/settings";
 import { useUI } from "../stores/ui";
 import {
   activeGoals,
+  activeSprint,
   goalProgress,
   goalTasks,
   isOpen,
@@ -262,6 +263,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
           <TaskBoard
             tasks={filtered}
             sprintId={null}
+            projectBoard
             onQuickAdd={(title) =>
               addTask({ title, projectId, priority: settings.defaultPriority })
             }
@@ -285,8 +287,10 @@ function ProjectList({
 }) {
   const settings = useSettings((s) => s.settings);
   const addTask = useData((s) => s.addTask);
+  const sprints = useData((s) => s.sprints);
   const [sort, setSort] = useState<"manual" | "due" | "priority" | "newest">("manual");
   const [adding, setAdding] = useState("");
+  const sprint = activeSprint(sprints);
 
   const groups: { key: string; label: string; tasks: Task[] }[] = [];
   const sortFn = (a: Task, b: Task) => {
@@ -305,9 +309,22 @@ function ProjectList({
   };
 
   if (groupBy === "status") {
+    groups.push({
+      key: "backlog",
+      label: "Backlog",
+      tasks: tasks
+        .filter((t) => t.status === "todo" && (!sprint || t.sprintId !== sprint.id))
+        .sort(sortFn),
+    });
     for (const st of statusColumns(settings.blockedEnabled)) {
-      const list = tasks.filter((t) => t.status === st).sort(sortFn);
-      if (st === "done" && list.length === 0) continue;
+      const list = tasks
+        .filter((t) =>
+          st === "todo"
+            ? t.status === "todo" && !!sprint && t.sprintId === sprint.id
+            : t.status === st,
+        )
+        .sort(sortFn);
+      if ((st === "done" || st === "todo") && list.length === 0) continue;
       groups.push({ key: st, label: STATUS_LABEL[st as TaskStatus], tasks: list });
     }
   } else {
@@ -341,7 +358,7 @@ function ProjectList({
       </div>
       {groups.map(
         (g) =>
-          (g.tasks.length > 0 || g.key === "todo") && (
+          (g.tasks.length > 0 || g.key === "backlog" || (groupBy === "priority" && g.key === "none")) && (
             <div key={g.key} className="mb-5">
               <div className="mb-2 flex items-center gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-ink3">
@@ -353,7 +370,7 @@ function ProjectList({
                 {g.tasks.map((t) => (
                   <TaskCard key={t.id} task={t} dense />
                 ))}
-                {g.key === "todo" && (
+                {(g.key === "backlog" || (groupBy === "priority" && g.key === "none")) && (
                   <input
                     value={adding}
                     onChange={(e) => setAdding(e.target.value)}

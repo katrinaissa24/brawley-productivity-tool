@@ -108,18 +108,34 @@ export function TodayView() {
         )}
 
         <SortableContext items={openIds} strategy={noSortingStrategy}>
-          {focus.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {focus.map((t) => (
-                <SortableTask key={t.id} task={t} listIds={openIds}>
-                  <TaskCard task={t} showProject />
-                </SortableTask>
-              ))}
-            </div>
-          )}
+          {(() => {
+            const notStarted = focus.filter((t) => t.status !== "in_progress");
+            const inProgress = focus.filter((t) => t.status === "in_progress");
+            const section = (label: string, list: typeof focus) =>
+              list.length > 0 && (
+                <div className="mb-5">
+                  <SectionLabel className="mb-2">
+                    {label} · {list.length}
+                  </SectionLabel>
+                  <div className="flex flex-col gap-2">
+                    {list.map((t) => (
+                      <SortableTask key={t.id} task={t} listIds={openIds}>
+                        <TaskCard task={t} showProject />
+                      </SortableTask>
+                    ))}
+                  </div>
+                </div>
+              );
+            return (
+              <>
+                {section("Not started", notStarted)}
+                {section("In progress", inProgress)}
+              </>
+            );
+          })()}
 
           {later.length > 0 && (
-            <div className="mt-5">
+            <div className="mt-1">
               <button
                 onClick={() => setLaterOpen(!laterOpen)}
                 className="flex items-center gap-1.5 text-[12.5px] font-medium text-ink3 hover:text-ink2 transition-colors"
