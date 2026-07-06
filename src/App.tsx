@@ -23,11 +23,14 @@ import { TaskDetailPanel } from "./components/TaskDetailPanel";
 import { PlanDayModal } from "./components/PlanDayModal";
 import { GoalModal } from "./components/GoalModal";
 import { ClassifyPopover, ConfirmDialog, ProjectModal, Toasts } from "./components/AppModals";
+import { GoalDeadlineDialog, useGoalDeadlines } from "./components/GoalDeadlineDialog";
 import { InboxView } from "./views/InboxView";
 import { TodayView } from "./views/TodayView";
 import { ProjectView } from "./views/ProjectView";
 import { SettingsView } from "./views/SettingsView";
-import { ArchiveView, GoalView, InsightsView, ReviewView, SprintView } from "./views/stubs";
+import { SprintView } from "./views/SprintView";
+import { GoalView } from "./views/GoalView";
+import { ArchiveView, InsightsView, ReviewView } from "./views/stubs";
 
 /* ------------------------------- boot (once) ------------------------------- */
 
@@ -170,6 +173,7 @@ export default function App() {
   }, []);
 
   useGlobalShortcuts(booted);
+  useGoalDeadlines(booted);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -335,6 +339,7 @@ export default function App() {
       <ProjectModal />
       <GoalModal />
       <ClassifyPopover />
+      <GoalDeadlineDialog />
       <ConfirmDialog />
       <Toasts />
     </DndContext>
