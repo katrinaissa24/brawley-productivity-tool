@@ -13,15 +13,18 @@ import { IconInbox } from "../components/icons";
 import type { DragData } from "../components/dnd";
 
 function DraggableNote({ task }: { task: Task }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: task.id,
     data: { type: "task", task, listIds: [] } satisfies DragData,
   });
+  // Stay mounted while dragging (unmounting the active node kills the drag);
+  // hide + drop out of flow so the list closes up.
+  const lifted = useUI((s) => s.draggingIds.includes(task.id));
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform) }}
-      className={cn("cursor-grab", isDragging && "opacity-30 z-30 relative")}
+      style={lifted ? undefined : { transform: CSS.Translate.toString(transform) }}
+      className={cn("cursor-grab", lifted && "invisible h-0 -mb-2")}
       {...attributes}
       {...listeners}
     >
@@ -32,8 +35,7 @@ function DraggableNote({ task }: { task: Task }) {
 
 export function InboxView() {
   const tasks = useData((s) => s.tasks);
-  const draggingIds = useUI((s) => s.draggingIds);
-  const notes = inboxTasks(tasks).filter((t) => !draggingIds.includes(t.id));
+  const notes = inboxTasks(tasks);
 
   return (
     <ViewShell

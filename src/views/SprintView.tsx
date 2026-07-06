@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext } from "@dnd-kit/sortable";
+import { noSortingStrategy } from "../lib/collision";
 import { useData } from "../stores/data";
 import { useUI } from "../stores/ui";
 import {
@@ -49,12 +50,11 @@ export function SprintView() {
   const backlog = useMemo(() => {
     if (!sprint) return [];
     return backlogTasks(tasks, projects, sprint.id).filter((t) => {
-      if (draggingIds.includes(t.id)) return false;
       if (backlogProject && t.projectId !== backlogProject) return false;
       if (backlogPriority && t.priority !== backlogPriority) return false;
       return true;
     });
-  }, [tasks, projects, sprint, backlogProject, backlogPriority, draggingIds]);
+  }, [tasks, projects, sprint, backlogProject, backlogPriority]);
 
   if (!sprint) {
     return (
@@ -69,7 +69,9 @@ export function SprintView() {
   const daysLeft = sprintDaysLeft(sprint);
   const due = reviewDue(sprint);
   const committedMinutes = workloadMinutes(committed.filter((t) => !t.archivedAt));
-  const backlogIds = backlog.map((t) => t.id);
+  const backlogIds = backlog
+    .filter((t) => !draggingIds.includes(t.id))
+    .map((t) => t.id);
 
   return (
     <ViewShell
@@ -181,7 +183,7 @@ export function SprintView() {
                       ]}
                     />
                   </div>
-                  <SortableContext items={backlogIds} strategy={verticalListSortingStrategy}>
+                  <SortableContext items={backlogIds} strategy={noSortingStrategy}>
                     <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 pt-0">
                       {backlog.length === 0 && (
                         <p className="px-2 py-6 text-center text-[12px] leading-relaxed text-ink3">

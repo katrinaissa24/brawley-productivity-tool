@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext } from "@dnd-kit/sortable";
+import { noSortingStrategy } from "../lib/collision";
 import { useData } from "../stores/data";
 import { useSettings } from "../stores/settings";
 import { useUI } from "../stores/ui";
@@ -28,21 +29,15 @@ export function TodayView() {
   const [doneOpen, setDoneOpen] = useState(true);
 
   const draggingIds = useUI((s) => s.draggingIds);
-  const lists = useMemo(
+  const { focus, later, done } = useMemo(
     () => todayLists(tasks, projects, settings.todayCap),
     [tasks, projects, settings.todayCap],
   );
-  const focus = useMemo(
-    () => lists.focus.filter((t) => !draggingIds.includes(t.id)),
-    [lists.focus, draggingIds],
-  );
-  const later = useMemo(
-    () => lists.later.filter((t) => !draggingIds.includes(t.id)),
-    [lists.later, draggingIds],
-  );
-  const done = lists.done;
   const open = useMemo(() => [...focus, ...later], [focus, later]);
-  const openIds = useMemo(() => open.map((t) => t.id), [open]);
+  const openIds = useMemo(
+    () => open.filter((t) => !draggingIds.includes(t.id)).map((t) => t.id),
+    [open, draggingIds],
+  );
   const workload = workloadMinutes(open);
   const doneMinutes = workloadMinutes(done);
 
@@ -112,7 +107,7 @@ export function TodayView() {
           </div>
         )}
 
-        <SortableContext items={openIds} strategy={verticalListSortingStrategy}>
+        <SortableContext items={openIds} strategy={noSortingStrategy}>
           {focus.length > 0 && (
             <div className="flex flex-col gap-2">
               {focus.map((t) => (

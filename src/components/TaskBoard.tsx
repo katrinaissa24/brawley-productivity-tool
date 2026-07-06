@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext } from "@dnd-kit/sortable";
+import { noSortingStrategy } from "../lib/collision";
 import type { Task, TaskStatus } from "../types";
 import { useData } from "../stores/data";
 import { useSettings } from "../stores/settings";
@@ -80,7 +81,7 @@ export function TaskBoard({
     <div className="flex h-full min-w-0 gap-3 overflow-x-auto pb-2">
       {columns.map((status) => {
         let colTasks = tasks
-          .filter((t) => t.status === status && !draggingIds.includes(t.id))
+          .filter((t) => t.status === status)
           .sort((a, b) => a.sortOrder - b.sortOrder);
         let hiddenDone = 0;
         if (status === "done") {
@@ -95,7 +96,8 @@ export function TaskBoard({
           if (settings.boardDoneRetentionDays === 0) colTasks = [];
           hiddenDone = all.length - colTasks.length;
         }
-        const ids = colTasks.map((t) => t.id);
+        // Lifted (dragging) tasks stay mounted but leave the sortable order.
+        const ids = colTasks.filter((t) => !draggingIds.includes(t.id)).map((t) => t.id);
         const atWip =
           status === "in_progress" && settings.wipLimitEnabled && wipCount >= settings.wipLimit;
 
@@ -140,7 +142,7 @@ export function TaskBoard({
                     </span>
                   )}
                 </div>
-                <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                <SortableContext items={ids} strategy={noSortingStrategy}>
                   <div className="flex min-h-[60px] flex-col gap-2 overflow-y-auto p-2">
                     {colTasks.map((t) => (
                       <SortableTask key={t.id} task={t} listIds={ids}>

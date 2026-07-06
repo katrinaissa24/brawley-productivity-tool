@@ -21,7 +21,7 @@ import { syncGlobalShortcut } from "./lib/native";
 import { startNotificationScheduler } from "./lib/notifications";
 import { isTauri } from "./db/driver";
 import type { DragData, DropData } from "./components/dnd";
-import { collisionDetection } from "./components/dnd";
+import { collisionDetection } from "./lib/collision";
 import { Sidebar } from "./components/Sidebar";
 import { TaskCard } from "./components/TaskCard";
 import { TaskDetailPanel } from "./components/TaskDetailPanel";
@@ -491,6 +491,7 @@ export default function App() {
       </div>
 
       <DragOverlay
+        className="drag-overlay-autosize"
         dropAnimation={{ duration: 160, easing: "cubic-bezier(0.2, 0.8, 0.3, 1)" }}
       >
         {dragTasks && overSidebar && (
@@ -500,7 +501,7 @@ export default function App() {
           <GroupDragOverlay tasks={dragTasks} />
         )}
         {dragTasks && !overSidebar && dragTasks.length === 1 && (
-          <div className="pointer-events-none rotate-[1.5deg] opacity-95">
+          <div className="pointer-events-none w-[300px] rotate-[1.5deg] opacity-95">
             <TaskCard task={dragTasks[0]} showProject />
           </div>
         )}

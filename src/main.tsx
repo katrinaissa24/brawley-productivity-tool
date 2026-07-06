@@ -1,4 +1,4 @@
-import ReactDOM from "react-dom/client";
+import ReactDOM, { type Root } from "react-dom/client";
 import App from "./App";
 import { CapturePane } from "./CapturePane";
 import "./styles.css";
@@ -10,6 +10,8 @@ if (isCapture) {
   document.body.style.background = "transparent";
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  isCapture ? <CapturePane /> : <App />,
-);
+// HMR-safe: if a full-page module invalidation re-runs this file, reuse the
+// existing root instead of mounting a second React tree over the first.
+const w = window as unknown as { __flowRoot?: Root };
+const root = (w.__flowRoot ??= ReactDOM.createRoot(document.getElementById("root")!));
+root.render(isCapture ? <CapturePane /> : <App />);

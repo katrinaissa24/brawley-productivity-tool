@@ -90,6 +90,13 @@ body.is-dragging * {
   cursor: grabbing !important;
 }
 
+/* The drag overlay sizes itself from its children, not from the (hidden)
+   source node — dnd-kit sets inline width/height from a zero-sized rect. */
+.drag-overlay-autosize {
+  width: fit-content !important;
+  height: fit-content !important;
+}
+
 @keyframes flowFadeIn {
   from {
     opacity: 0;

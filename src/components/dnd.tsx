@@ -1,13 +1,9 @@
 import type { ReactNode } from "react";
-import {
-  pointerWithin,
-  rectIntersection,
-  useDroppable,
-  type CollisionDetection,
-} from "@dnd-kit/core";
+import { useDroppable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Task, TaskStatus } from "../types";
+import { useUI } from "../stores/ui";
 import { cn } from "../lib/util";
 
 /** Data payloads discriminated by `type` on active/over. */
@@ -22,12 +18,6 @@ export type DropData =
   | { type: "column"; status: TaskStatus; sprintId: string | null; listIds: string[] }
   | { type: "backlog" };
 
-export const collisionDetection: CollisionDetection = (args) => {
-  const within = pointerWithin(args);
-  if (within.length > 0) return within;
-  return rectIntersection(args);
-};
-
 /** Sortable wrapper for task cards inside ordered lists / board columns. */
 export function SortableTask({
   task,
@@ -40,25 +30,23 @@ export function SortableTask({
   children: ReactNode;
   disabled?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver, active } =
-    useSortable({
-      id: task.id,
-      disabled,
-      data: { type: "task", task, listIds } satisfies DragData,
-    });
-  const showInsertHint =
-    isOver && !isDragging && active?.id !== task.id && active?.data.current?.type === "task";
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: task.id,
+    disabled,
+    data: { type: "task", task, listIds } satisfies DragData,
+  });
+  // While this task rides the cursor, keep the node MOUNTED (unmounting the
+  // active draggable kills the drag) as a zero-height invisible box: it keeps
+  // its position+width (correct overlay anchor) but takes no visual space.
+  const lifted = useUI((s) => s.draggingIds.includes(task.id));
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("relative cursor-grab", isDragging && "opacity-30")}
+      style={lifted ? undefined : { transform: CSS.Transform.toString(transform), transition }}
+      className={cn("relative cursor-grab", lifted && "invisible h-0 -mb-2")}
       {...attributes}
       {...listeners}
     >
-      {showInsertHint && (
-        <div className="pointer-events-none absolute -top-[5px] left-1 right-1 z-10 h-[2.5px] rounded-full bg-accent" />
-      )}
       {children}
     </div>
   );
