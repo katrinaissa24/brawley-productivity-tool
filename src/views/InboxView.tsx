@@ -18,13 +18,14 @@ function DraggableNote({ task }: { task: Task }) {
     data: { type: "task", task, listIds: [] } satisfies DragData,
   });
   // Stay mounted while dragging (unmounting the active node kills the drag);
-  // hide + drop out of flow so the list closes up.
+  // collapse + clip so it vanishes instantly (see SortableTask for why
+  // overflow-hidden matters here — no lingering ghost silhouette).
   const lifted = useUI((s) => s.draggingIds.includes(task.id));
   return (
     <div
       ref={setNodeRef}
       style={lifted ? undefined : { transform: CSS.Translate.toString(transform) }}
-      className={cn("cursor-grab", lifted && "invisible h-0 -mb-2")}
+      className={cn("cursor-grab", lifted && "h-0 -mb-2 overflow-hidden")}
       {...attributes}
       {...listeners}
     >

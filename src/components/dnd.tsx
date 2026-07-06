@@ -44,14 +44,17 @@ export function SortableTask({
     data: { type: "task", task, listIds } satisfies DragData,
   });
   // While this task rides the cursor, keep the node MOUNTED (unmounting the
-  // active draggable kills the drag) as a zero-height invisible box: it keeps
-  // its position+width (correct overlay anchor) but takes no visual space.
+  // active draggable kills the drag) as a zero-height clipped box: it keeps its
+  // position+width (correct overlay anchor) but takes no visual space.
+  // `overflow-hidden` clips the child on the same frame the slot collapses —
+  // without it the card's own `transition-all` would fade its inherited
+  // visibility over 200ms, leaving a ghost silhouette behind the cursor.
   const lifted = useUI((s) => s.draggingIds.includes(task.id));
   return (
     <div
       ref={setNodeRef}
       style={lifted ? undefined : { transform: CSS.Transform.toString(transform), transition }}
-      className={cn("relative cursor-grab", lifted && "invisible h-0 -mb-2")}
+      className={cn("relative cursor-grab", lifted && "h-0 -mb-2 overflow-hidden")}
       {...attributes}
       {...listeners}
     >
