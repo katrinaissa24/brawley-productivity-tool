@@ -552,8 +552,11 @@ export const useData = create<DataState>((set, get) => ({
     const now = nowISO();
     const today = todayStr();
 
-    const naturalStart = addDaysStr(old.endDate, 1);
-    const startStr = naturalStart < today ? today : naturalStart;
+    // Early review truncates the sprint to today; late review starts the next
+    // sprint today instead of back-dating it.
+    const closedEnd = old.endDate < today ? old.endDate : today;
+    const candidate = addDaysStr(closedEnd, 1);
+    const startStr = candidate < today ? today : candidate;
     const endStr = addDaysStr(startStr, Math.max(1, st.sprintLengthDays) - 1);
     const next: Sprint = {
       id: uuid(),
@@ -564,7 +567,13 @@ export const useData = create<DataState>((set, get) => ({
       createdAt: now,
       updatedAt: now,
     };
-    const closed: Sprint = { ...old, status: "completed", reviewCompletedAt: now, updatedAt: now };
+    const closed: Sprint = {
+      ...old,
+      endDate: closedEnd,
+      status: "completed",
+      reviewCompletedAt: now,
+      updatedAt: now,
+    };
 
     const taskWrites = new Map<string, Task>();
     for (const t of get().tasks) {

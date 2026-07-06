@@ -26,6 +26,11 @@ export function todayStr(): string {
   return toDateStr(new Date());
 }
 
+/** Local calendar date (yyyy-MM-dd) of a full ISO timestamp. */
+export function localDateOf(iso: string): string {
+  return toDateStr(new Date(iso));
+}
+
 /** Parse yyyy-MM-dd as local midnight */
 export function parseDateStr(s: string): Date {
   const [y, m, d] = s.split("-").map(Number);

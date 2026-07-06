@@ -10,6 +10,7 @@ import {
   cn,
   DOW_SHORT,
   formatMinutes,
+  localDateOf,
   parseEstimate,
   relativeDayLabel,
   todayStr,
@@ -513,8 +514,8 @@ export function TaskDetailPanel() {
         <div className="flex items-center justify-between border-t border-bord px-4 py-3 shrink-0">
           <span className="text-[11px] text-ink3">
             {done && task.completedAt
-              ? `Completed ${relativeDayLabel(task.completedAt.slice(0, 10))}`
-              : `Created ${relativeDayLabel(task.createdAt.slice(0, 10))}`}
+              ? `Completed ${relativeDayLabel(localDateOf(task.completedAt))}`
+              : `Created ${relativeDayLabel(localDateOf(task.createdAt))}`}
           </span>
           {done ? (
             <Button variant="secondary" onClick={() => updateTask(task.id, { status: "todo" })}>

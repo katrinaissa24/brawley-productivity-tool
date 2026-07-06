@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import type { Goal, Milestone, Project, Sprint, Task, TaskStatus } from "../types";
-import { daysBetween, daysUntil, parseDateStr, sum, todayStr } from "../lib/util";
+import { daysBetween, daysUntil, localDateOf, parseDateStr, sum, todayStr } from "../lib/util";
 
 export const isOpen = (t: Task): boolean => !t.archivedAt && t.status !== "done";
 
@@ -38,7 +38,7 @@ export function todayLists(tasks: Task[], projects: Project[], cap: number): Tod
     .filter((t) => t.status !== "done" && t.doDate != null && t.doDate <= today)
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const done = vis
-    .filter((t) => t.status === "done" && t.completedAt && t.completedAt.slice(0, 10) === today)
+    .filter((t) => t.status === "done" && t.completedAt && localDateOf(t.completedAt) === today)
     .sort((a, b) => ((a.completedAt ?? "") < (b.completedAt ?? "") ? 1 : -1));
   return { focus: open.slice(0, cap), later: open.slice(cap), done };
 }
@@ -152,11 +152,11 @@ export function sprintDaysLeft(sprint: Sprint): number {
   return Math.max(0, daysUntil(sprint.endDate) + 1);
 }
 
-/** Tasks completed in [from, to] date-string range (inclusive). */
+/** Tasks completed in [from, to] local-date range (inclusive). */
 export function doneInRange(tasks: Task[], from: string, to: string): Task[] {
   return tasks.filter((t) => {
     if (t.status !== "done" || !t.completedAt) return false;
-    const d = t.completedAt.slice(0, 10);
+    const d = localDateOf(t.completedAt);
     return d >= from && d <= to;
   });
 }
@@ -164,7 +164,7 @@ export function doneInRange(tasks: Task[], from: string, to: string): Task[] {
 export function trendByDay(tasks: Task[], from: string, to: string): { date: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const t of doneInRange(tasks, from, to)) {
-    const d = t.completedAt!.slice(0, 10);
+    const d = localDateOf(t.completedAt!);
     counts.set(d, (counts.get(d) ?? 0) + 1);
   }
   const out: { date: string; count: number }[] = [];

@@ -30,7 +30,9 @@ import { ProjectView } from "./views/ProjectView";
 import { SettingsView } from "./views/SettingsView";
 import { SprintView } from "./views/SprintView";
 import { GoalView } from "./views/GoalView";
-import { ArchiveView, InsightsView, ReviewView } from "./views/stubs";
+import { ReviewView } from "./views/ReviewView";
+import { InsightsView } from "./views/InsightsView";
+import { ArchiveView } from "./views/ArchiveView";
 
 /* ------------------------------- boot (once) ------------------------------- */
 
@@ -315,7 +317,7 @@ export default function App() {
     >
       <div className="flex h-screen w-screen overflow-hidden bg-app text-ink">
         <Sidebar />
-        <main className="min-w-0 flex-1">
+        <main className="relative min-w-0 flex-1">
           <CurrentView />
         </main>
       </div>

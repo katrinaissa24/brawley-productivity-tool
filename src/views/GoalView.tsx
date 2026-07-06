@@ -6,7 +6,7 @@ import { useData } from "../stores/data";
 import { useSettings, isDark } from "../stores/settings";
 import { useUI } from "../stores/ui";
 import { goalProgress, goalTasks, isOpen } from "../stores/selectors";
-import { cn, daysUntil, formatDateShort, formatMinutes, plural, todayStr } from "../lib/util";
+import { addDaysStr, cn, daysUntil, formatDateShort, formatMinutes, localDateOf, plural, todayStr } from "../lib/util";
 import { TaskCard } from "../components/TaskCard";
 import { ViewShell } from "../components/ViewShell";
 import { Button, EmptyState, ProgressRing, SectionLabel } from "../components/ui/primitives";
@@ -79,23 +79,24 @@ export function GoalView({ goalId }: { goalId: string }) {
     const doneTasks = linked
       .filter((t) => t.completedAt)
       .sort((a, b) => ((a.completedAt ?? "") < (b.completedAt ?? "") ? -1 : 1));
-    const start = goal.createdAt.slice(0, 10);
+    let start = localDateOf(goal.createdAt);
+    for (const t of doneTasks) {
+      const d = localDateOf(t.completedAt!);
+      if (d < start) start = d;
+    }
     const end = todayStr();
     const out: { date: string; done: number }[] = [];
-    let cursor = new Date(start + "T00:00:00");
-    const endD = new Date(end + "T00:00:00");
+    let cursor = start;
     let count = 0;
     let i = 0;
-    const maxPoints = 120;
     let guard = 0;
-    while (cursor <= endD && guard++ < maxPoints) {
-      const key = cursor.toISOString().slice(0, 10);
-      while (i < doneTasks.length && (doneTasks[i].completedAt ?? "").slice(0, 10) <= key) {
+    while (cursor <= end && guard++ < 120) {
+      while (i < doneTasks.length && localDateOf(doneTasks[i].completedAt!) <= cursor) {
         count++;
         i++;
       }
-      out.push({ date: key.slice(5), done: count });
-      cursor = new Date(cursor.getTime() + 864e5);
+      out.push({ date: cursor.slice(5), done: count });
+      cursor = addDaysStr(cursor, 1);
     }
     return out;
   }, [goal, linked]);
