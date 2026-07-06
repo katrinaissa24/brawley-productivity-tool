@@ -461,10 +461,20 @@ export function TaskDetailPanel() {
                 <input
                   value={newSub}
                   onChange={(e) => setNewSub(e.target.value)}
+                  onBlur={() => {
+                    if (newSub.trim()) {
+                      addSubtask(task.id, newSub);
+                      setNewSub("");
+                    }
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && newSub.trim()) {
                       addSubtask(task.id, newSub);
                       setNewSub("");
+                    }
+                    if (e.key === "Escape") {
+                      setNewSub("");
+                      (e.target as HTMLInputElement).blur();
                     }
                   }}
                   placeholder="Add subtask"

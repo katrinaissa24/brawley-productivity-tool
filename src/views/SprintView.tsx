@@ -45,14 +45,16 @@ export function SprintView() {
     () => (sprint ? sprintTasks(tasks, projects, sprint.id) : []),
     [tasks, projects, sprint],
   );
+  const draggingIds = useUI((s) => s.draggingIds);
   const backlog = useMemo(() => {
     if (!sprint) return [];
     return backlogTasks(tasks, projects, sprint.id).filter((t) => {
+      if (draggingIds.includes(t.id)) return false;
       if (backlogProject && t.projectId !== backlogProject) return false;
       if (backlogPriority && t.priority !== backlogPriority) return false;
       return true;
     });
-  }, [tasks, projects, sprint, backlogProject, backlogPriority]);
+  }, [tasks, projects, sprint, backlogProject, backlogPriority, draggingIds]);
 
   if (!sprint) {
     return (

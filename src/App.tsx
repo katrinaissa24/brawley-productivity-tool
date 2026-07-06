@@ -6,6 +6,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragMoveEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import type { Project, Task } from "./types";
@@ -14,6 +15,7 @@ import { useSettings } from "./stores/settings";
 import { useUI } from "./stores/ui";
 import { activeProjects } from "./stores/selectors";
 import { reorderIds } from "./lib/util";
+import { moveTasksToProject } from "./lib/actions";
 import { comboToAccelerator, isEditableTarget, matchCombo } from "./lib/shortcuts";
 import { syncGlobalShortcut } from "./lib/native";
 import { startNotificationScheduler } from "./lib/notifications";
@@ -92,6 +94,14 @@ function useGlobalShortcuts(enabled: boolean) {
         if (ui.selectedIds.length > 0) {
           e.preventDefault();
           confirmDeleteTasks(ui.selectedIds);
+        }
+        return;
+      }
+
+      if (!editable && matchCombo(e, "mod+z")) {
+        if (ui.undoAction) {
+          e.preventDefault();
+          ui.undoAction.run();
         }
         return;
       }
@@ -222,13 +232,38 @@ function GroupDragOverlay({ tasks }: { tasks: Task[] }) {
   );
 }
 
+/** Compact pill shown instead of the full card while dragging over the sidebar. */
+function MiniDragPill({ task, count }: { task: Task; count: number }) {
+  const project = useData((s) => s.projects.find((p) => p.id === task.projectId));
+  return (
+    <div className="anim-pop pointer-events-none flex h-[30px] max-w-[210px] items-center gap-1.5 rounded-lg border border-bord bg-pop px-2.5 shadow-pop">
+      <span
+        className="h-2 w-2 shrink-0 rounded-full"
+        style={{ background: project?.color ?? "rgb(var(--c-accent))" }}
+      />
+      <span className="truncate text-[12px] font-medium text-ink">{task.title}</span>
+      {count > 1 && (
+        <span className="ml-0.5 inline-flex h-[16px] shrink-0 items-center rounded-full bg-accent px-1.5 text-[10.5px] font-bold text-white">
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
+const SIDEBAR_ZONE_PX = 248;
+
 export default function App() {
   const [booted, setBooted] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const [dragTasks, setDragTasks] = useState<Task[] | null>(null);
   const [dragProject, setDragProject] = useState<Project | null>(null);
+  const [overSidebar, setOverSidebar] = useState(false);
 
   useEffect(() => {
+    // Defensive: a hot-reload or crash mid-drag must never leave tasks hidden.
+    useUI.getState().setDraggingIds([]);
+    document.body.classList.remove("is-dragging");
     boot()
       .then(() => setBooted(true))
       .catch((e) => {
@@ -245,17 +280,23 @@ export default function App() {
   );
 
   const onDragStart = (e: DragStartEvent) => {
+    document.body.classList.add("is-dragging");
+    setOverSidebar(false);
     const d = e.active.data.current as DragData | undefined;
     if (d?.type === "task") {
       const sel = useUI.getState().selectedIds;
+      let group: Task[];
       if (sel.includes(d.task.id) && sel.length > 1) {
         const rest = useData
           .getState()
           .tasks.filter((t) => sel.includes(t.id) && t.id !== d.task.id);
-        setDragTasks([d.task, ...rest]);
+        group = [d.task, ...rest];
       } else {
-        setDragTasks([d.task]);
+        group = [d.task];
       }
+      setDragTasks(group);
+      // Hide the originals — lists close the gap while the cards ride the cursor.
+      useUI.getState().setDraggingIds(group.map((t) => t.id));
     }
     if (d?.type === "project") {
       const p = useData.getState().projects.find((x) => x.id === d.projectId);
@@ -263,9 +304,26 @@ export default function App() {
     }
   };
 
-  const onDragEnd = (e: DragEndEvent) => {
+  const onDragMove = (e: DragMoveEvent) => {
+    if (!dragTasks) return;
+    const activator = e.activatorEvent as Partial<PointerEvent> | null;
+    const startX = typeof activator?.clientX === "number" ? activator.clientX : null;
+    if (startX === null) return;
+    const x = startX + e.delta.x;
+    const over = x < SIDEBAR_ZONE_PX;
+    setOverSidebar((prev) => (prev === over ? prev : over));
+  };
+
+  const endDrag = () => {
+    document.body.classList.remove("is-dragging");
     setDragTasks(null);
     setDragProject(null);
+    setOverSidebar(false);
+    useUI.getState().setDraggingIds([]);
+  };
+
+  const onDragEnd = (e: DragEndEvent) => {
+    endDrag();
     const a = e.active.data.current as DragData | undefined;
     const o = e.over?.data.current as DropData | undefined;
     if (!a || !e.over || !o) return;
@@ -317,24 +375,17 @@ export default function App() {
 
     if (o.type === "project") {
       const wasSingleInboxNote = group.length === 1 && t.projectId === null;
-      let movedCount = 0;
-      for (const task of group) {
-        if (task.projectId !== o.projectId) {
-          data.updateTask(task.id, { projectId: o.projectId, goalId: null });
-          movedCount++;
+      const movedCount = moveTasksToProject(groupIds, o.projectId);
+      if (movedCount > 0) {
+        if (wasSingleInboxNote) {
+          const rect = e.over.rect;
+          ui.setDropClassify({
+            taskId: t.id,
+            x: rect.left + rect.width + 14,
+            y: rect.top - 2,
+          });
         }
-      }
-      if (wasSingleInboxNote && movedCount > 0) {
-        const rect = e.over.rect;
-        ui.setDropClassify({
-          taskId: t.id,
-          x: rect.left + rect.width + 14,
-          y: rect.top - 2,
-        });
-      } else if (group.length > 1 && movedCount > 0) {
-        const proj = data.projects.find((p) => p.id === o.projectId);
-        ui.toast(`Moved ${movedCount} task${movedCount === 1 ? "" : "s"} to ${proj?.name ?? "project"}`, "success");
-        ui.clearSelection();
+        if (group.length > 1) ui.clearSelection();
       }
       return;
     }
@@ -428,11 +479,9 @@ export default function App() {
       sensors={sensors}
       collisionDetection={collisionDetection}
       onDragStart={onDragStart}
+      onDragMove={onDragMove}
       onDragEnd={onDragEnd}
-      onDragCancel={() => {
-        setDragTasks(null);
-        setDragProject(null);
-      }}
+      onDragCancel={endDrag}
     >
       <div className="flex h-screen w-screen overflow-hidden bg-app text-ink">
         <Sidebar />
@@ -441,9 +490,16 @@ export default function App() {
         </main>
       </div>
 
-      <DragOverlay dropAnimation={{ duration: 160, easing: "cubic-bezier(0.2, 0.8, 0.3, 1)" }}>
-        {dragTasks && dragTasks.length > 1 && <GroupDragOverlay tasks={dragTasks} />}
-        {dragTasks && dragTasks.length === 1 && (
+      <DragOverlay
+        dropAnimation={{ duration: 160, easing: "cubic-bezier(0.2, 0.8, 0.3, 1)" }}
+      >
+        {dragTasks && overSidebar && (
+          <MiniDragPill task={dragTasks[0]} count={dragTasks.length} />
+        )}
+        {dragTasks && !overSidebar && dragTasks.length > 1 && (
+          <GroupDragOverlay tasks={dragTasks} />
+        )}
+        {dragTasks && !overSidebar && dragTasks.length === 1 && (
           <div className="pointer-events-none rotate-[1.5deg] opacity-95">
             <TaskCard task={dragTasks[0]} showProject />
           </div>

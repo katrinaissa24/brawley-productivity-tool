@@ -84,6 +84,12 @@
   }
 }
 
+/* While any drag is active: closed-hand cursor everywhere */
+body.is-dragging,
+body.is-dragging * {
+  cursor: grabbing !important;
+}
+
 @keyframes flowFadeIn {
   from {
     opacity: 0;

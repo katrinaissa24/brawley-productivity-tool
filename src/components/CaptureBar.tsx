@@ -9,17 +9,18 @@ export function CaptureBar() {
   const tick = useUI((s) => s.captureFocusTick);
   const [value, setValue] = useState("");
   const ref = useRef<HTMLInputElement>(null);
+  const skipBlurSave = useRef(false);
 
   useEffect(() => {
     ref.current?.focus();
   }, [tick]);
 
-  const submit = () => {
+  const submit = (refocus = true) => {
     const title = value.trim();
     if (!title) return;
     addTask({ title });
     setValue("");
-    ref.current?.focus();
+    if (refocus) ref.current?.focus();
   };
 
   return (
@@ -29,9 +30,17 @@ export function CaptureBar() {
         ref={ref}
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onBlur={() => {
+          // Clicking away still saves the thought; Esc keeps it in the box unsaved.
+          if (!skipBlurSave.current) submit(false);
+          skipBlurSave.current = false;
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") submit();
-          if (e.key === "Escape") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") {
+            skipBlurSave.current = true;
+            (e.target as HTMLInputElement).blur();
+          }
         }}
         placeholder="Dump a thought — Enter saves it"
         className="h-full flex-1 bg-transparent text-[14px] text-ink placeholder:text-ink3 outline-none"

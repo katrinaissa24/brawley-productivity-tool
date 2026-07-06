@@ -2,6 +2,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { Task } from "../types";
 import { useData } from "../stores/data";
+import { useUI } from "../stores/ui";
 import { inboxTasks } from "../stores/selectors";
 import { cn, plural } from "../lib/util";
 import { CaptureBar } from "../components/CaptureBar";
@@ -20,7 +21,7 @@ function DraggableNote({ task }: { task: Task }) {
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform) }}
-      className={cn(isDragging && "opacity-30 z-30 relative")}
+      className={cn("cursor-grab", isDragging && "opacity-30 z-30 relative")}
       {...attributes}
       {...listeners}
     >
@@ -31,7 +32,8 @@ function DraggableNote({ task }: { task: Task }) {
 
 export function InboxView() {
   const tasks = useData((s) => s.tasks);
-  const notes = inboxTasks(tasks);
+  const draggingIds = useUI((s) => s.draggingIds);
+  const notes = inboxTasks(tasks).filter((t) => !draggingIds.includes(t.id));
 
   return (
     <ViewShell

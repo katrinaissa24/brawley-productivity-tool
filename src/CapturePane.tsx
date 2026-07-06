@@ -12,6 +12,7 @@ export function CapturePane() {
   const [value, setValue] = useState("");
   const [flash, setFlash] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
+  const skipBlurSave = useRef(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -39,6 +40,18 @@ export function CapturePane() {
       });
     })();
     const onBlur = async () => {
+      // Losing focus saves whatever was typed (never discard), then hides.
+      // Esc and Enter set skipBlurSave — they already handled the text.
+      if (!skipBlurSave.current) {
+        const title = ref.current?.value.trim();
+        if (title && useData.getState().loaded) {
+          useData.getState().addTask({ title });
+          setValue("");
+          const { emit } = await import("@tauri-apps/api/event");
+          void emit("flow:data-changed", { source: "capture" });
+        }
+      }
+      skipBlurSave.current = false;
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
       void getCurrentWindow().hide();
     };
@@ -58,6 +71,7 @@ export function CapturePane() {
   const submit = async () => {
     const title = value.trim();
     if (!title || !ready) return;
+    skipBlurSave.current = true; // the hide below fires a blur — don't save twice
     useData.getState().addTask({ title });
     setValue("");
     setFlash(true);
@@ -84,7 +98,10 @@ export function CapturePane() {
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") void submit();
-            if (e.key === "Escape") void hide();
+            if (e.key === "Escape") {
+              skipBlurSave.current = true; // Esc = explicit cancel, don't save
+              void hide();
+            }
           }}
           placeholder="What's on your mind?"
           className="h-full flex-1 bg-transparent text-[16px] text-ink outline-none placeholder:text-ink3"

@@ -12,6 +12,7 @@ import {
   todayStr,
 } from "../lib/util";
 import { parseRecurrence } from "../lib/recurrence";
+import { moveTasksToProject } from "../lib/actions";
 import {
   IconArchive,
   IconCalendar,
@@ -74,13 +75,13 @@ export function taskMenuItems(task: Task): MenuItem[] {
       ...projects.map((p) => ({
         label: p.name,
         checked: task.projectId === p.id,
-        onSelect: () => data.updateTask(task.id, { projectId: p.id }),
+        onSelect: () => moveTasksToProject([task.id], p.id),
       })),
       { divider: true, label: "" },
       {
         label: "Inbox",
         checked: task.projectId === null,
-        onSelect: () => data.updateTask(task.id, { projectId: null, goalId: null }),
+        onSelect: () => moveTasksToProject([task.id], null),
       },
     ],
   });
@@ -316,7 +317,7 @@ export function TaskCard({
           setMenu({ x: e.clientX, y: e.clientY });
         }}
         className={cn(
-          "group relative rounded-card border bg-card px-3 transition-all duration-200 cursor-default",
+          "group relative rounded-card border bg-card px-3 transition-all duration-200",
           dense ? "py-2" : "py-2.5",
           selected
             ? "border-accent/60 ring-2 ring-accent/15"

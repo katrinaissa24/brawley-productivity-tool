@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Task, TaskStatus } from "../types";
 import { useData } from "../stores/data";
 import { useSettings } from "../stores/settings";
+import { useUI } from "../stores/ui";
 import { STATUS_LABEL, statusColumns } from "../stores/selectors";
 import { cn, plural } from "../lib/util";
 import { DroppableColumn, SortableTask } from "./dnd";
@@ -12,6 +13,7 @@ import { IconPlus } from "./icons";
 function QuickAdd({ onAdd }: { onAdd: (title: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
+  const cancelled = useRef(false);
   if (!editing) {
     return (
       <button
@@ -28,6 +30,9 @@ function QuickAdd({ onAdd }: { onAdd: (title: string) => void }) {
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onBlur={() => {
+        // Clicking away saves what you typed — Esc is the explicit cancel.
+        if (!cancelled.current && value.trim()) onAdd(value);
+        cancelled.current = false;
         setEditing(false);
         setValue("");
       }}
@@ -37,6 +42,7 @@ function QuickAdd({ onAdd }: { onAdd: (title: string) => void }) {
           setValue("");
         }
         if (e.key === "Escape") {
+          cancelled.current = true;
           setEditing(false);
           setValue("");
         }
@@ -66,6 +72,7 @@ export function TaskBoard({
   const wipCount = useData((s) =>
     s.tasks.filter((t) => t.status === "in_progress" && !t.archivedAt).length,
   );
+  const draggingIds = useUI((s) => s.draggingIds);
   const columns = statusColumns(settings.blockedEnabled);
   const retentionMs = settings.boardDoneRetentionDays * 864e5;
 
@@ -73,7 +80,7 @@ export function TaskBoard({
     <div className="flex h-full min-w-0 gap-3 overflow-x-auto pb-2">
       {columns.map((status) => {
         let colTasks = tasks
-          .filter((t) => t.status === status)
+          .filter((t) => t.status === status && !draggingIds.includes(t.id))
           .sort((a, b) => a.sortOrder - b.sortOrder);
         let hiddenDone = 0;
         if (status === "done") {

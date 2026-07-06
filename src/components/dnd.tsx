@@ -40,19 +40,25 @@ export function SortableTask({
   children: ReactNode;
   disabled?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: task.id,
-    disabled,
-    data: { type: "task", task, listIds } satisfies DragData,
-  });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver, active } =
+    useSortable({
+      id: task.id,
+      disabled,
+      data: { type: "task", task, listIds } satisfies DragData,
+    });
+  const showInsertHint =
+    isOver && !isDragging && active?.id !== task.id && active?.data.current?.type === "task";
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(isDragging && "opacity-30")}
+      className={cn("relative cursor-grab", isDragging && "opacity-30")}
       {...attributes}
       {...listeners}
     >
+      {showInsertHint && (
+        <div className="pointer-events-none absolute -top-[5px] left-1 right-1 z-10 h-[2.5px] rounded-full bg-accent" />
+      )}
       {children}
     </div>
   );

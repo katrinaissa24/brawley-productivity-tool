@@ -27,10 +27,20 @@ export function TodayView() {
   const [laterOpen, setLaterOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(true);
 
-  const { focus, later, done } = useMemo(
+  const draggingIds = useUI((s) => s.draggingIds);
+  const lists = useMemo(
     () => todayLists(tasks, projects, settings.todayCap),
     [tasks, projects, settings.todayCap],
   );
+  const focus = useMemo(
+    () => lists.focus.filter((t) => !draggingIds.includes(t.id)),
+    [lists.focus, draggingIds],
+  );
+  const later = useMemo(
+    () => lists.later.filter((t) => !draggingIds.includes(t.id)),
+    [lists.later, draggingIds],
+  );
+  const done = lists.done;
   const open = useMemo(() => [...focus, ...later], [focus, later]);
   const openIds = useMemo(() => open.map((t) => t.id), [open]);
   const workload = workloadMinutes(open);

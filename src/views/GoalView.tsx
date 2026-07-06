@@ -321,10 +321,20 @@ export function GoalView({ goalId }: { goalId: string }) {
                 <input
                   value={newMilestone}
                   onChange={(e) => setNewMilestone(e.target.value)}
+                  onBlur={() => {
+                    if (newMilestone.trim()) {
+                      addMilestone(goal.id, newMilestone);
+                      setNewMilestone("");
+                    }
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && newMilestone.trim()) {
                       addMilestone(goal.id, newMilestone);
                       setNewMilestone("");
+                    }
+                    if (e.key === "Escape") {
+                      setNewMilestone("");
+                      (e.target as HTMLInputElement).blur();
                     }
                   }}
                   placeholder="Add milestone"
@@ -351,6 +361,17 @@ export function GoalView({ goalId }: { goalId: string }) {
             <input
               value={newTask}
               onChange={(e) => setNewTask(e.target.value)}
+              onBlur={() => {
+                if (newTask.trim()) {
+                  addTask({
+                    title: newTask,
+                    projectId: goal.projectId,
+                    goalId: goal.id,
+                    priority: settings.defaultPriority,
+                  });
+                  setNewTask("");
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && newTask.trim()) {
                   const t = addTask({
@@ -361,6 +382,10 @@ export function GoalView({ goalId }: { goalId: string }) {
                   });
                   setNewTask("");
                   if (e.metaKey) openDetail(t.id);
+                }
+                if (e.key === "Escape") {
+                  setNewTask("");
+                  (e.target as HTMLInputElement).blur();
                 }
               }}
               placeholder="+ Add task to this goal"

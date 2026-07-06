@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useData } from "../stores/data";
 import { useUI } from "../stores/ui";
 import { activeProjects } from "../stores/selectors";
-import { plural } from "../lib/util";
+import { moveTasksToProject } from "../lib/actions";
 import { FloatingMenu, type MenuItem } from "./ui/primitives";
 import { IconFolder, IconTrash, IconX } from "./icons";
 
@@ -42,18 +42,17 @@ export function BulkBar() {
     const data = useData.getState();
     const ui = useUI.getState();
     const ids = ui.selectedIds;
-    const move = (projectId: string | null, name: string) => {
-      for (const id of ids) data.updateTask(id, { projectId, goalId: null });
-      ui.toast(`Moved ${plural(ids.length, "task")} to ${name}`, "success");
+    const move = (projectId: string | null) => {
+      moveTasksToProject(ids, projectId);
       ui.clearSelection();
     };
     return [
       ...activeProjects(data.projects).map((p) => ({
         label: p.name,
-        onSelect: () => move(p.id, p.name),
+        onSelect: () => move(p.id),
       })),
       { divider: true, label: "" },
-      { label: "Inbox", onSelect: () => move(null, "Inbox") },
+      { label: "Inbox", onSelect: () => move(null) },
     ];
   };
 

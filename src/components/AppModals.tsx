@@ -47,12 +47,24 @@ export function ConfirmDialog() {
 
 /* --------------------------------- Toasts ---------------------------------- */
 
-function ToastItem({ id, message, kind }: { id: number; message: string; kind: string }) {
+function ToastItem({
+  id,
+  message,
+  kind,
+  action,
+  duration,
+}: {
+  id: number;
+  message: string;
+  kind: string;
+  action?: { label: string; onSelect: () => void };
+  duration: number;
+}) {
   const dismissToast = useUI((s) => s.dismissToast);
   useEffect(() => {
-    const t = setTimeout(() => dismissToast(id), 4000);
+    const t = setTimeout(() => dismissToast(id), duration);
     return () => clearTimeout(t);
-  }, [id, dismissToast]);
+  }, [id, duration, dismissToast]);
   return (
     <div
       className={cn(
@@ -67,6 +79,17 @@ function ToastItem({ id, message, kind }: { id: number; message: string; kind: s
       {kind === "success" && <IconCheck size={14} className="text-accent" />}
       {kind === "error" && <IconAlert size={14} />}
       <span className="max-w-[420px]">{message}</span>
+      {action && (
+        <button
+          onClick={() => {
+            action.onSelect();
+            dismissToast(id);
+          }}
+          className="rounded-md px-2 py-0.5 text-[12.5px] font-semibold text-accent transition-colors hover:bg-accent/10"
+        >
+          {action.label}
+        </button>
+      )}
       <button onClick={() => dismissToast(id)} className="ml-1 text-ink3 hover:text-ink">
         <IconX size={12} />
       </button>

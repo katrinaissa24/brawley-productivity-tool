@@ -357,10 +357,20 @@ function ProjectList({
                   <input
                     value={adding}
                     onChange={(e) => setAdding(e.target.value)}
+                    onBlur={() => {
+                      if (adding.trim()) {
+                        addTask({ title: adding, projectId, priority: settings.defaultPriority });
+                        setAdding("");
+                      }
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && adding.trim()) {
                         addTask({ title: adding, projectId, priority: settings.defaultPriority });
                         setAdding("");
+                      }
+                      if (e.key === "Escape") {
+                        setAdding("");
+                        (e.target as HTMLInputElement).blur();
                       }
                     }}
                     placeholder="+ New task"

@@ -5,6 +5,8 @@ export interface Toast {
   id: number;
   message: string;
   kind: "info" | "error" | "success";
+  action?: { label: string; onSelect: () => void };
+  duration: number;
 }
 
 export interface ConfirmSpec {
@@ -45,8 +47,21 @@ interface UIState {
   closeConfirm(): void;
 
   toasts: Toast[];
-  toast(message: string, kind?: Toast["kind"]): void;
+  toast(
+    message: string,
+    kind?: Toast["kind"],
+    action?: Toast["action"],
+    durationMs?: number,
+  ): void;
   dismissToast(id: number): void;
+
+  /** Ids of tasks currently being dragged — lists hide them so space closes up. */
+  draggingIds: string[];
+  setDraggingIds(ids: string[]): void;
+
+  /** Single-level undo for the last move operation (⌘Z / toast button). */
+  undoAction: { run: () => void } | null;
+  setUndo(a: { run: () => void } | null): void;
 
   dropClassify: DropClassify | null;
   setDropClassify(v: DropClassify | null): void;
@@ -113,12 +128,28 @@ export const useUI = create<UIState>((set, get) => ({
   },
 
   toasts: [],
-  toast(message, kind = "info") {
-    const t: Toast = { id: toastSeq++, message, kind };
+  toast(message, kind = "info", action, durationMs) {
+    const t: Toast = {
+      id: toastSeq++,
+      message,
+      kind,
+      action,
+      duration: durationMs ?? (action ? 6000 : 4000),
+    };
     set({ toasts: [...get().toasts, t] });
   },
   dismissToast(id) {
     set({ toasts: get().toasts.filter((t) => t.id !== id) });
+  },
+
+  draggingIds: [],
+  setDraggingIds(ids) {
+    set({ draggingIds: ids });
+  },
+
+  undoAction: null,
+  setUndo(a) {
+    set({ undoAction: a });
   },
 
   dropClassify: null,
