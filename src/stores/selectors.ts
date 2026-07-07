@@ -31,6 +31,14 @@ export interface TodayLists {
   done: Task[];
 }
 
+/** Count of today's tasks that aren't complete — the Today sidebar badge. */
+export function todayOpenCount(tasks: Task[], projects: Project[]): number {
+  const today = todayStr();
+  return visibleTasks(tasks, projects).filter(
+    (t) => t.status !== "done" && t.doDate != null && t.doDate <= today,
+  ).length;
+}
+
 export function todayLists(tasks: Task[], projects: Project[], cap: number): TodayLists {
   const today = todayStr();
   const vis = visibleTasks(tasks, projects);

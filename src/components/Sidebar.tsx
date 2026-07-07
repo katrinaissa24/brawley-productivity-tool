@@ -10,6 +10,7 @@ import {
   inboxTasks,
   isOpen,
   reviewDue,
+  todayOpenCount,
 } from "../stores/selectors";
 import { cn } from "../lib/util";
 import {
@@ -176,6 +177,7 @@ export function Sidebar() {
   const sprints = useData((s) => s.sprints);
 
   const inboxCount = inboxTasks(tasks).length;
+  const todayCount = todayOpenCount(tasks, projects);
   const projs = activeProjects(projects);
   const due = reviewDue(activeSprint(sprints));
 
@@ -209,6 +211,7 @@ export function Sidebar() {
         <NavItem
           icon={<IconSun size={15} />}
           label="Today"
+          badge={todayCount}
           active={is("today")}
           onClick={() => go({ name: "today" })}
           shortcut="⌘2"
