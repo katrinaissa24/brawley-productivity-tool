@@ -22,6 +22,7 @@ import {
   uuid,
 } from "../lib/util";
 import { nextOccurrence, parseRecurrence } from "../lib/recurrence";
+import { countInProgress } from "./selectors";
 import { useSettings } from "./settings";
 import { useUI } from "./ui";
 
@@ -240,9 +241,9 @@ export const useData = create<DataState>((set, get) => ({
     if (cur.status === status) return { ok: true };
     const st = useSettings.getState().settings;
     if (status === "in_progress" && st.wipLimitEnabled) {
-      const count = get().tasks.filter(
-        (t) => t.status === "in_progress" && !t.archivedAt && t.id !== id,
-      ).length;
+      // cur isn't in progress yet (early return above), so it isn't in this
+      // count. Count the same visible/today set the WIP badge shows.
+      const count = countInProgress(get().tasks, get().projects);
       if (count >= st.wipLimit) {
         return {
           ok: false,
@@ -254,11 +255,14 @@ export const useData = create<DataState>((set, get) => ({
       get().completeTask(id);
       return { ok: true };
     }
-    // Invariant: an in-progress task always belongs to the active sprint.
+    // Invariant: an in-progress task is always planned for today and belongs to
+    // the active sprint — so it surfaces in the Today bar and counts toward WIP.
     if (status === "in_progress") {
       const active = get().sprints.find((sp) => sp.status === "active");
+      const today = todayStr();
       get().updateTask(id, {
         status,
+        ...(cur.doDate == null || cur.doDate > today ? { doDate: today } : {}),
         ...(active && cur.sprintId !== active.id ? { sprintId: active.id } : {}),
       });
       return { ok: true };
@@ -551,14 +555,25 @@ export const useData = create<DataState>((set, get) => ({
       active = sp;
     }
     // Reconcile the invariant for existing data: every open in-progress task
-    // belongs to the active sprint (fixes phantom WIP counts).
+    // belongs to the active sprint and is planned for today, so it shows in the
+    // Today bar and the WIP count matches what the user sees (fixes phantom WIP
+    // from in-progress tasks that were never planned for a day).
     const sprintId = active.id;
+    const today = todayStr();
     const strays = get().tasks.filter(
-      (t) => t.status === "in_progress" && !t.archivedAt && t.sprintId !== sprintId,
+      (t) =>
+        t.status === "in_progress" &&
+        !t.archivedAt &&
+        (t.sprintId !== sprintId || t.doDate == null || t.doDate > today),
     );
     if (strays.length) {
       const now = nowISO();
-      const updated = strays.map((t) => ({ ...t, sprintId, updatedAt: now }));
+      const updated = strays.map((t) => ({
+        ...t,
+        sprintId,
+        doDate: t.doDate == null || t.doDate > today ? today : t.doDate,
+        updatedAt: now,
+      }));
       const byId = new Map(updated.map((t) => [t.id, t]));
       set((s) => ({ tasks: s.tasks.map((t) => byId.get(t.id) ?? t) }));
       persist(() => Promise.all(updated.map((t) => repo.upsertTask(t))));

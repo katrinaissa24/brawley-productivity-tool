@@ -5,7 +5,7 @@ import type { Task, TaskStatus } from "../types";
 import { useData } from "../stores/data";
 import { useSettings } from "../stores/settings";
 import { useUI } from "../stores/ui";
-import { activeSprint, STATUS_LABEL, statusColumns } from "../stores/selectors";
+import { activeSprint, countInProgress, STATUS_LABEL, statusColumns } from "../stores/selectors";
 import { cn, plural } from "../lib/util";
 import { DroppableColumn, SortableTask } from "./dnd";
 import { TaskCard } from "./TaskCard";
@@ -88,9 +88,7 @@ export function TaskBoard({
 }) {
   const settings = useSettings((s) => s.settings);
   const sprints = useData((s) => s.sprints);
-  const wipCount = useData(
-    (s) => s.tasks.filter((t) => t.status === "in_progress" && !t.archivedAt).length,
-  );
+  const wipCount = useData((s) => countInProgress(s.tasks, s.projects));
   const draggingIds = useUI((s) => s.draggingIds);
   const [colMenu, setColMenu] = useState<{ x: number; y: number; label: string; tasks: Task[] } | null>(null);
   const retentionDays = settings.boardDoneRetentionDays;
