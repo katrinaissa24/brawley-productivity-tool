@@ -52,6 +52,19 @@ fn restart_app(app: tauri::AppHandle) {
     app.restart();
 }
 
+/// Open an https URL in the user's default browser (used by "Check for updates").
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !url.starts_with("https://") {
+        return Err("only https URLs are allowed".into());
+    }
+    std::process::Command::new("open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn toggle_capture(app: &tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("capture") {
         if win.is_visible().unwrap_or(false) {
@@ -89,6 +102,7 @@ fn main() {
             export_db,
             import_db,
             restart_app,
+            open_url,
             set_capture_shortcut
         ])
         .setup(|app| {

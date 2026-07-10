@@ -7,6 +7,7 @@ import { useUI } from "../stores/ui";
 import { ACCENT_COLORS, cn, DOW_LABELS } from "../lib/util";
 import { comboFromEvent, comboLabel, comboToAccelerator } from "../lib/shortcuts";
 import { exportBackup, importBackup, revealDb, syncGlobalShortcut } from "../lib/native";
+import { APP_VERSION, checkForUpdate, openExternal, type UpdateResult } from "../lib/updates";
 import { ViewShell } from "../components/ViewShell";
 import { Button, SectionLabel, Segmented, Select, TextInput, Toggle } from "../components/ui/primitives";
 import {
@@ -33,6 +34,7 @@ const SECTIONS = [
   { id: "notifications", label: "Notifications", icon: <IconBell size={14} /> },
   { id: "shortcuts", label: "Shortcuts", icon: <IconKeyboard size={14} /> },
   { id: "data", label: "Data", icon: <IconDatabase size={14} /> },
+  { id: "updates", label: "Updates", icon: <IconDownload size={14} /> },
 ];
 
 function Row({
@@ -161,6 +163,79 @@ function ShortcutRecorder({ k }: { k: keyof ShortcutMap }) {
     >
       {recording ? "Press keys…" : comboLabel(settings.shortcuts[k])}
     </button>
+  );
+}
+
+function UpdatesCard() {
+  const toast = useUI((s) => s.toast);
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<UpdateResult | null>(null);
+
+  const check = async () => {
+    setChecking(true);
+    const r = await checkForUpdate();
+    setResult(r);
+    setChecking(false);
+    if (r.status === "error") {
+      toast("Couldn't check for updates — check your connection", "error");
+    }
+  };
+
+  return (
+    <Card title="Updates">
+      <Row label="Current version" desc="This is the build you're running right now.">
+        <span className="text-[13px] tabular-nums text-ink2">v{APP_VERSION}</span>
+      </Row>
+      <Row label="Check for updates" desc="Looks for a newer release published on GitHub.">
+        <Button icon={<IconDownload size={13} />} onClick={() => void check()} disabled={checking}>
+          {checking ? "Checking…" : "Check now"}
+        </Button>
+      </Row>
+
+      {result?.status === "current" && (
+        <p className="py-2.5 text-[12.5px] text-ink3">
+          You're on the latest version
+          {result.latestVersion ? ` (v${result.latestVersion})` : ""}. 🎉
+        </p>
+      )}
+
+      {result?.status === "available" && (
+        <div className="py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[13.5px] font-medium text-ink">
+                v{result.latestVersion} is available
+              </p>
+              <p className="mt-0.5 text-[12px] text-ink3">You're on v{result.currentVersion}.</p>
+            </div>
+            {result.downloadUrl && (
+              <Button
+                variant="primary"
+                icon={<IconDownload size={13} />}
+                onClick={() => void openExternal(result.downloadUrl!)}
+              >
+                Download
+              </Button>
+            )}
+          </div>
+          {result.notes && (
+            <pre className="mt-3 max-h-[180px] overflow-y-auto whitespace-pre-wrap rounded-lg border border-bord bg-panel p-3 text-[12px] leading-relaxed text-ink2">
+              {result.notes}
+            </pre>
+          )}
+          <p className="mt-2 text-[11.5px] text-ink3">
+            Opens the .dmg download — open it, then drag Flow into Applications to update. Your data
+            stays put.
+          </p>
+        </div>
+      )}
+
+      {result?.status === "error" && (
+        <p className="py-2.5 text-[12.5px] text-ink3">
+          Couldn't reach GitHub{result.message ? ` (${result.message})` : ""}. Try again in a moment.
+        </p>
+      )}
+    </Card>
   );
 }
 
@@ -588,6 +663,8 @@ export function SettingsView() {
               </Card>
             </>
           )}
+
+          {section === "updates" && <UpdatesCard />}
         </div>
       </div>
     </ViewShell>

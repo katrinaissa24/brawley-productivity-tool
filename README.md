@@ -50,3 +50,27 @@ npm run tauri build
 Everything lives in one file: `~/Library/Application Support/flow/flow.db`.
 Export or import a backup, or reveal it in Finder, from **Settings → Data**.
 Nothing is hard-deleted without explicit confirmation — archive first.
+
+## Updates
+
+**In the app:** **Settings → Updates → Check now** asks GitHub for the latest
+release. If a newer version exists, it shows the release notes and a **Download**
+button that opens the `.dmg` — open it and drag Flow into Applications. Your
+database is separate from the app bundle, so updating never touches your data.
+
+**Publishing an update (maintainer):**
+
+1. Bump the version in **three** places so they match: `package.json`,
+   `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
+2. Commit, then tag and push:
+   ```sh
+   git tag v0.1.1 && git push origin v0.1.1
+   ```
+3. The **Release** GitHub Action ([.github/workflows/release.yml](.github/workflows/release.yml))
+   builds a universal macOS `.dmg` and publishes it as a GitHub Release. Once
+   it finishes, everyone's **Check for updates** will find it.
+
+> The `.dmg` is unsigned, so on first launch macOS may need a right-click →
+> **Open** to bypass Gatekeeper (same as a local `npm run tauri build`). For a
+> fully seamless in-app auto-updater (download + install + relaunch), Flow would
+> need signing keys and the Tauri updater plugin — a future enhancement.

@@ -1,0 +1,43 @@
+name: Release
+
+# Push a version tag (e.g. `git tag v0.1.1 && git push --tags`) to build a
+# universal macOS .dmg and publish it as a GitHub Release. The app's
+# Settings → Updates "Check for updates" button reads this release.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Flow ${{ github.ref_name }}
+          releaseBody: |
+            Download the `.dmg` below, open it, and drag Flow into Applications.
+            Your data (a local SQLite file) is untouched by updates.
+          releaseDraft: false
+          prerelease: false
+          # Universal binary runs on both Apple Silicon and Intel Macs.
+          args: --target universal-apple-darwin

@@ -1,5 +1,8 @@
 /// <reference types="vite/client" />
 
+/** Package version injected at build time (see vite.config.ts `define`). */
+declare const __APP_VERSION__: string;
+
 declare module "*.sql?raw" {
   const content: string;
   export default content;
