@@ -128,8 +128,14 @@ export function staleTasks(tasks: Task[], projects: Project[], staleDays: number
     .sort((a, b) => (a.updatedAt < b.updatedAt ? -1 : 1));
 }
 
-export function countInProgress(tasks: Task[]): number {
-  return tasks.filter((t) => t.status === "in_progress" && !t.archivedAt).length;
+/**
+ * The WIP count: tasks in progress that are visible to the user. Every
+ * in-progress task is planned for today (see trySetStatus / ensureActiveSprint),
+ * so this is exactly the set shown in the Today bar's "In progress" section —
+ * archived tasks and tasks in archived projects never inflate it.
+ */
+export function countInProgress(tasks: Task[], projects: Project[]): number {
+  return visibleTasks(tasks, projects).filter((t) => t.status === "in_progress").length;
 }
 
 export function workloadMinutes(list: Task[]): number {
