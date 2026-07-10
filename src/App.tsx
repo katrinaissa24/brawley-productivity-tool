@@ -15,7 +15,7 @@ import { useSettings } from "./stores/settings";
 import { useUI } from "./stores/ui";
 import { activeProjects } from "./stores/selectors";
 import { reorderIds } from "./lib/util";
-import { moveTasksToProject } from "./lib/actions";
+import { moveTasksToInbox, moveTasksToProject } from "./lib/actions";
 import { comboToAccelerator, isEditableTarget, matchCombo } from "./lib/shortcuts";
 import { syncGlobalShortcut } from "./lib/native";
 import { startNotificationScheduler } from "./lib/notifications";
@@ -391,6 +391,28 @@ export default function App() {
             y: rect.top - 2,
           });
         }
+        if (group.length > 1) ui.clearSelection();
+      }
+      return;
+    }
+
+    if (o.type === "inbox") {
+      const movedCount = moveTasksToInbox(groupIds);
+      if (movedCount > 0 && group.length > 1) ui.clearSelection();
+      return;
+    }
+
+    if (o.type === "sprint") {
+      if (!o.sprintId) return;
+      const moved = group.filter((task) => task.sprintId !== o.sprintId);
+      for (const task of moved) data.commitToSprint(task.id, o.sprintId);
+      if (moved.length) {
+        ui.toast(
+          moved.length === 1
+            ? "Added task to this sprint"
+            : `Added ${moved.length} tasks to this sprint`,
+          "success",
+        );
         if (group.length > 1) ui.clearSelection();
       }
       return;

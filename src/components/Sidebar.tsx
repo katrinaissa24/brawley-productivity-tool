@@ -1,7 +1,9 @@
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useState, type ReactNode } from "react";
 import type { Project, View } from "../types";
+import type { DropData } from "./dnd";
 import { useData } from "../stores/data";
 import { useUI } from "../stores/ui";
 import {
@@ -25,6 +27,21 @@ import {
 } from "./icons";
 import { FloatingMenu, Kbd, type MenuItem } from "./ui/primitives";
 
+/** Wraps a nav item as a drop target; reports when a *task* is hovering it. */
+function DroppableNav({
+  id,
+  data,
+  children,
+}: {
+  id: string;
+  data: DropData;
+  children: (over: boolean) => ReactNode;
+}) {
+  const { setNodeRef, isOver, active } = useDroppable({ id, data });
+  const taskOver = isOver && active?.data.current?.type === "task";
+  return <div ref={setNodeRef}>{children(taskOver)}</div>;
+}
+
 function NavItem({
   icon,
   label,
@@ -33,6 +50,7 @@ function NavItem({
   badge,
   dot,
   shortcut,
+  highlight,
 }: {
   icon: ReactNode;
   label: string;
@@ -41,6 +59,7 @@ function NavItem({
   badge?: number;
   dot?: boolean;
   shortcut?: string;
+  highlight?: boolean;
 }) {
   return (
     <button
@@ -51,6 +70,7 @@ function NavItem({
         active
           ? "bg-accent/10 text-accent font-medium"
           : "text-ink2 hover:bg-ink/5 hover:text-ink",
+        highlight && "ring-2 ring-accent/60 bg-accent/10",
       )}
     >
       <span className={cn("shrink-0", active ? "text-accent" : "text-ink3 group-hover:text-ink2")}>
@@ -179,7 +199,8 @@ export function Sidebar() {
   const inboxCount = inboxTasks(tasks).length;
   const todayCount = todayOpenCount(tasks, projects);
   const projs = activeProjects(projects);
-  const due = reviewDue(activeSprint(sprints));
+  const active = activeSprint(sprints);
+  const due = reviewDue(active);
 
   const is = (name: View["name"]) => view.name === name;
 
@@ -200,14 +221,19 @@ export function Sidebar() {
       </div>
 
       <nav className="mt-3 px-3 flex flex-col gap-0.5">
-        <NavItem
-          icon={<IconInbox size={15} />}
-          label="Inbox"
-          badge={inboxCount}
-          active={is("inbox")}
-          onClick={() => go({ name: "inbox" })}
-          shortcut="⌘1"
-        />
+        <DroppableNav id="nav:inbox" data={{ type: "inbox" }}>
+          {(over) => (
+            <NavItem
+              icon={<IconInbox size={15} />}
+              label="Inbox"
+              badge={inboxCount}
+              active={is("inbox")}
+              onClick={() => go({ name: "inbox" })}
+              shortcut="⌘1"
+              highlight={over}
+            />
+          )}
+        </DroppableNav>
         <NavItem
           icon={<IconSun size={15} />}
           label="Today"
@@ -216,13 +242,18 @@ export function Sidebar() {
           onClick={() => go({ name: "today" })}
           shortcut="⌘2"
         />
-        <NavItem
-          icon={<IconZap size={15} />}
-          label="Sprint"
-          active={is("sprint")}
-          onClick={() => go({ name: "sprint" })}
-          shortcut="⌘3"
-        />
+        <DroppableNav id="nav:sprint" data={{ type: "sprint", sprintId: active?.id ?? null }}>
+          {(over) => (
+            <NavItem
+              icon={<IconZap size={15} />}
+              label="Sprint"
+              active={is("sprint")}
+              onClick={() => go({ name: "sprint" })}
+              shortcut="⌘3"
+              highlight={over}
+            />
+          )}
+        </DroppableNav>
         <NavItem
           icon={<IconCheckCircle size={15} />}
           label="Review"

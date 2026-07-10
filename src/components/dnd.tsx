@@ -24,7 +24,11 @@ export type DropData =
       unassign?: boolean;
       listIds: string[];
     }
-  | { type: "backlog" };
+  | { type: "backlog" }
+  /** Sidebar Inbox row — send dropped tasks back to the loose inbox. */
+  | { type: "inbox" }
+  /** Sidebar Sprint row — commit dropped tasks to the active sprint. */
+  | { type: "sprint"; sprintId: string | null };
 
 /** Sortable wrapper for task cards inside ordered lists / board columns. */
 export function SortableTask({
