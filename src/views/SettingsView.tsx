@@ -168,6 +168,8 @@ function ShortcutRecorder({ k }: { k: keyof ShortcutMap }) {
 
 function UpdatesCard() {
   const toast = useUI((s) => s.toast);
+  const settings = useSettings((s) => s.settings);
+  const patch = useSettings((s) => s.patch);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<UpdateResult | null>(null);
 
@@ -190,6 +192,15 @@ function UpdatesCard() {
         <Button icon={<IconDownload size={13} />} onClick={() => void check()} disabled={checking}>
           {checking ? "Checking…" : "Check now"}
         </Button>
+      </Row>
+      <Row
+        label="Notify me on launch"
+        desc="When Flow starts, check for a new version and show a prompt if one exists."
+      >
+        <Toggle
+          checked={settings.updateCheckOnLaunch}
+          onChange={(v) => patch({ updateCheckOnLaunch: v })}
+        />
       </Row>
 
       {result?.status === "current" && (

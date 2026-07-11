@@ -1,6 +1,6 @@
 [package]
 name = "flow"
-version = "0.1.0"
+version = "0.1.1"
 description = "Flow — the calm personal task manager"
 authors = ["Katrina"]
 edition = "2021"

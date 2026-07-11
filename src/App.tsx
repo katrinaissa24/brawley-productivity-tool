@@ -16,6 +16,7 @@ import { useUI } from "./stores/ui";
 import { activeProjects } from "./stores/selectors";
 import { reorderIds } from "./lib/util";
 import { moveTasksToInbox, moveTasksToProject } from "./lib/actions";
+import { checkForUpdate } from "./lib/updates";
 import { comboToAccelerator, isEditableTarget, matchCombo } from "./lib/shortcuts";
 import { syncGlobalShortcut } from "./lib/native";
 import { startNotificationScheduler } from "./lib/notifications";
@@ -63,9 +64,23 @@ function boot(): Promise<void> {
         );
       }
       startNotificationScheduler();
+      void promptForUpdateIfAvailable();
     })();
   }
   return bootPromise;
+}
+
+/** On launch, quietly check GitHub for a newer release and prompt to update. */
+async function promptForUpdateIfAvailable(): Promise<void> {
+  if (!useSettings.getState().settings.updateCheckOnLaunch) return;
+  const r = await checkForUpdate();
+  if (r.status !== "available" || !r.latestVersion) return;
+  useUI.getState().toast(
+    `Flow v${r.latestVersion} is available`,
+    "info",
+    { label: "Update", onSelect: () => useUI.getState().go({ name: "settings", section: "updates" }) },
+    20000,
+  );
 }
 
 /* ------------------------------ keyboard layer ----------------------------- */

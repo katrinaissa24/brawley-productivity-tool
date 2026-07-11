@@ -148,6 +148,7 @@ export interface Settings {
   boardDoneRetentionDays: number; // 0 = collapse Done column to a count
   todayCap: number;
   planMyDayEnabled: boolean;
+  updateCheckOnLaunch: boolean;
   goalDefaultProgressMode: ProgressMode;
   goalDeadlineBehavior: DeadlineBehavior;
   sprintCapacityHours: number;
@@ -193,6 +194,7 @@ export const DEFAULT_SETTINGS: Settings = {
   boardDoneRetentionDays: 0,
   todayCap: 5,
   planMyDayEnabled: true,
+  updateCheckOnLaunch: true,
   goalDefaultProgressMode: "auto_tasks",
   goalDeadlineBehavior: "ask",
   sprintCapacityHours: 20,
