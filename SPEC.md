@@ -315,7 +315,7 @@ Global capture shortcut (system-wide). Native macOS notifications (all types). C
 ---
 
 ## 10. Non-Goals (do NOT build)
-- No calendar interface
+- ~~No calendar interface~~ — superseded: a task calendar shipped post-v1, see §12
 - No accounts, auth, cloud sync, or servers — 100% local
 - No collaboration/sharing features
 - No mobile version
@@ -332,3 +332,41 @@ Global capture shortcut (system-wide). Native macOS notifications (all types). C
 - Optimistic UI updates with rollback on DB error
 - Keep components small; views in `src/views/`, shared UI in `src/components/`
 - Test with seeded demo data (script to insert 3 projects, 2 goals, 25 tasks) but ship with a clean first-run experience: a short 3-step onboarding (create first project → capture first note → drag it in)
+
+---
+
+## 12. Calendar (added post-v1)
+
+A Notion-Calendar-style **week view of tasks** — not a separate event store. A
+task appears on the calendar when its `do_date` is set; a task with `do_time`
+is a timed block, one without is an all-day chip in the top row. Sidebar nav:
+"Calendar", directly under Insights.
+
+**Layout** (left → right): mini-month + project list (its own panel, like
+Notion Calendar's calendar list) · optional unscheduled-tasks tray · week grid
+(time gutter, all-day row, 7 day columns, red now-line).
+
+**Active project.** One project is always "active" (checked square in the
+calendar's project list; persisted in `viewPrefs`). Click-or-drag on empty
+grid → quick-create popover → the new task belongs to the active project.
+Clicking the active project again toggles a tray listing that project's
+open tasks with **no do_date**; drag them onto the grid (timed) or the
+all-day row (date only). Dragging a scheduled block onto the tray
+unschedules it.
+
+**Block interactions** — pointer-native, 15-minute snapping: drag the body to
+move across days/times, drag either edge to resize, drag between the grid and
+the all-day row to add/remove a time. Click opens the task detail panel;
+right-click opens the standard task context menu. The detail panel gained
+Time + duration fields under "Do date".
+
+**Schema** (migration 002): `tasks.do_time TEXT` ("HH:mm"), 
+`tasks.duration_minutes INTEGER` (block length; falls back to
+`estimate_minutes`, then 60), `tasks.rollover_from TEXT`.
+
+**Overnight rollover.** At boot and at midnight, every unfinished task with
+`do_date < today` is shifted to today, keeping its time; `rollover_from`
+remembers the first planned day. Today shows these under a **"Do later"**
+section (amber, "from Yesterday" chip). Any deliberate reschedule — drag on
+the calendar, a date edit, or a drop into a Today section — clears the flag.
+In-progress tasks skip "Do later" and stay in the main flow.

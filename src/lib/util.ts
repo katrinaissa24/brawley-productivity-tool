@@ -79,6 +79,43 @@ export function parseEstimate(input: string): number | null {
   return null;
 }
 
+/** "HH:mm" → minutes since midnight (null for malformed input). */
+export function parseHM(s: string): number | null {
+  const m = s.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/** Minutes since midnight → "HH:mm". */
+export function minutesToHM(min: number): string {
+  const m = clamp(Math.round(min), 0, 24 * 60 - 1);
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+/** Minutes since midnight → "9 AM" / "1:45 PM" (meridiem optional). */
+export function formatClock(min: number, withMeridiem = true): string {
+  const m = ((Math.round(min) % 1440) + 1440) % 1440;
+  const h24 = Math.floor(m / 60);
+  const mm = m % 60;
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  const base = mm === 0 ? `${h12}` : `${h12}:${String(mm).padStart(2, "0")}`;
+  return withMeridiem ? `${base} ${h24 < 12 ? "AM" : "PM"}` : base;
+}
+
+/** "8–9 AM", "1:45–2:45 PM", "11:30 AM–1 PM" — meridiem shown once when shared. */
+export function formatTimeRange(startMin: number, endMin: number): string {
+  const sameMeridiem =
+    endMin < 1440 && Math.floor(startMin / 720) === Math.floor(endMin / 720);
+  const start = formatClock(startMin, !sameMeridiem);
+  const end = formatClock(endMin, true); // 1440 wraps to "12 AM"
+  return `${start}–${end}`;
+}
+
 export function formatDateShort(s: string): string {
   const d = parseDateStr(s);
   return isSameYear(d, new Date()) ? format(d, "MMM d") : format(d, "MMM d, yyyy");

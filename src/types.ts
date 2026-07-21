@@ -52,7 +52,10 @@ export interface Task {
   status: TaskStatus;
   priority: Priority | null;
   dueDate: string | null; // hard deadline
-  doDate: string | null; // planned work day — drives Today
+  doDate: string | null; // planned work day — drives Today + Calendar
+  doTime: string | null; // "HH:mm" start on doDate; null = date only (all-day row)
+  durationMinutes: number | null; // calendar block length when doTime is set
+  rolloverFrom: string | null; // original doDate of an unfinished task auto-shifted forward
   estimateMinutes: number | null;
   recurrence: string | null; // serialized Recurrence JSON
   sortOrder: number;
@@ -215,6 +218,7 @@ export type View =
   | { name: "sprint" }
   | { name: "review" }
   | { name: "insights" }
+  | { name: "calendar" }
   | { name: "project"; projectId: string }
   | { name: "goal"; goalId: string }
   | { name: "settings"; section?: string }

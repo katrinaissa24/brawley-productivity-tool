@@ -6,7 +6,9 @@ import { useUI } from "../stores/ui";
 import { activeSprint, ageInDays, subtaskProgress } from "../stores/selectors";
 import {
   cn,
+  formatClock,
   formatMinutes,
+  parseHM,
   PRIORITY_META,
   relativeDayLabel,
   todayStr,
@@ -41,6 +43,14 @@ export function taskMenuItems(task: Task): MenuItem[] {
   const items: MenuItem[] = [];
 
   if (task.status !== "done") {
+    if (task.rolloverFrom != null) {
+      // Rolled-over task: re-committing clears the "Do later" flag.
+      items.push({
+        label: "Commit to today",
+        icon: <IconSun size={14} />,
+        onSelect: () => data.updateTask(task.id, { doDate: today }),
+      });
+    }
     if (task.doDate !== today) {
       items.push({
         label: "Do today",
@@ -188,6 +198,15 @@ export function TaskChips({ task, showProject }: { task: Task; showProject?: boo
           {PRIORITY_META[task.priority].label}
         </Chip>
       )}
+      {task.rolloverFrom != null && task.status !== "done" && (
+        <Chip
+          className="text-amber-600 dark:text-amber-400 bg-amber-500/10"
+          title={`Rolled over from ${relativeDayLabel(task.rolloverFrom)}`}
+        >
+          <IconRepeat size={11} />
+          from {relativeDayLabel(task.rolloverFrom)}
+        </Chip>
+      )}
       {task.dueDate && (
         <Chip
           title={`Due ${task.dueDate}`}
@@ -199,6 +218,12 @@ export function TaskChips({ task, showProject }: { task: Task; showProject?: boo
         >
           <IconCalendar size={11} />
           {overdue ? `Overdue · ${relativeDayLabel(task.dueDate)}` : relativeDayLabel(task.dueDate)}
+        </Chip>
+      )}
+      {task.doTime != null && task.status !== "done" && (
+        <Chip className="text-ink3 bg-panel" title={`Scheduled ${task.doDate ?? ""} ${task.doTime}`}>
+          <IconClock size={11} />
+          {formatClock(parseHM(task.doTime) ?? 0)}
         </Chip>
       )}
       {task.estimateMinutes != null && task.estimateMinutes > 0 && (

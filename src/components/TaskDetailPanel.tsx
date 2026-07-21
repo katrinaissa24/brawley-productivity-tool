@@ -412,6 +412,45 @@ export function TaskDetailPanel() {
             <FieldRow label="Do date">
               <DateField value={task.doDate} onChange={(v) => updateTask(task.id, { doDate: v })} quickToday />
             </FieldRow>
+            <FieldRow label="Time">
+              {task.doDate ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="time"
+                    value={task.doTime ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value || null;
+                      updateTask(task.id, {
+                        doTime: v,
+                        // First time placed on the clock: seed a sensible length.
+                        ...(v && task.durationMinutes == null
+                          ? { durationMinutes: task.estimateMinutes ?? 60 }
+                          : {}),
+                      });
+                    }}
+                    className="h-[28px] rounded-lg border border-bord bg-card px-2 text-[12.5px] text-ink focus:border-accent/60 focus:outline-none"
+                  />
+                  {task.doTime && (
+                    <>
+                      <span className="text-[12px] text-ink3">for</span>
+                      <EstimateField
+                        value={task.durationMinutes}
+                        onChange={(v) => updateTask(task.id, { durationMinutes: v })}
+                      />
+                      <button
+                        onClick={() => updateTask(task.id, { doTime: null })}
+                        className="text-ink3 hover:text-ink p-0.5"
+                        title="Clear time (all-day)"
+                      >
+                        <IconX size={12} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <span className="text-[12.5px] text-ink3">Set a do date first</span>
+              )}
+            </FieldRow>
             <FieldRow label="Due date">
               <DateField value={task.dueDate} onChange={(v) => updateTask(task.id, { dueDate: v })} />
             </FieldRow>

@@ -28,6 +28,8 @@ export function inboxTasks(tasks: Task[]): Task[] {
 export interface TodayLists {
   focus: Task[];
   later: Task[];
+  /** Unfinished tasks rolled forward from a previous day — "Do later". */
+  doLater: Task[];
   done: Task[];
 }
 
@@ -45,10 +47,22 @@ export function todayLists(tasks: Task[], projects: Project[], cap: number): Tod
   const open = vis
     .filter((t) => t.status !== "done" && t.doDate != null && t.doDate <= today)
     .sort((a, b) => a.sortOrder - b.sortOrder);
+  // Rolled-over leftovers live under "Do later" — unless already in progress,
+  // which keeps them in the main flow (WIP stays visible).
+  const rolled = (t: Task) => t.rolloverFrom != null && t.status === "todo";
+  const doLater = open.filter(rolled);
+  const fresh = open.filter((t) => !rolled(t));
   const done = vis
     .filter((t) => t.status === "done" && t.completedAt && localDateOf(t.completedAt) === today)
     .sort((a, b) => ((a.completedAt ?? "") < (b.completedAt ?? "") ? 1 : -1));
-  return { focus: open.slice(0, cap), later: open.slice(cap), done };
+  return { focus: fresh.slice(0, cap), later: fresh.slice(cap), doLater, done };
+}
+
+/** Open tasks in a project with no planned day — the calendar's unscheduled tray. */
+export function unscheduledTasks(tasks: Task[], projectId: string | null): Task[] {
+  return tasks
+    .filter((t) => isOpen(t) && t.projectId === projectId && t.doDate == null)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export function statusColumns(blockedEnabled: boolean): TaskStatus[] {

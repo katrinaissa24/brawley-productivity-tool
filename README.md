@@ -21,6 +21,10 @@ The full product spec lives in [SPEC.md](SPEC.md).
 - **Sprints & Weekly Review** — one active sprint at a time, plus a guided
   review that triages stale tasks, checks every goal, and plans the next
   sprint
+- **Calendar** — a Notion-Calendar-style week view of your tasks: drag to
+  create, move, and resize timed blocks, an all-day row for date-only tasks,
+  and a per-project tray of unscheduled tasks you can drag onto the grid.
+  Unfinished tasks roll forward overnight into a "Do later" group on Today
 - **Insights** — sprint and project charts, focus distribution, completion
   trends
 - **100% local** — everything lives in one SQLite file, exportable and
