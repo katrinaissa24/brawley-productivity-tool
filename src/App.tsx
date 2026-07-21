@@ -63,6 +63,10 @@ function boot(): Promise<void> {
         void syncGlobalShortcut(comboToAccelerator(combo)).catch((e) =>
           console.warn("global shortcut registration failed", e),
         );
+        // Quietly check GitHub for a newer signed release a few seconds after
+        // launch; prompts only if one is actually available.
+        const { checkForUpdate } = await import("./lib/updater");
+        window.setTimeout(() => void checkForUpdate({ silent: true }), 4000);
       }
       startNotificationScheduler();
     })();

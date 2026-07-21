@@ -5,3 +5,8 @@ src-tauri/gen
 .DS_Store
 *.log
 *.local
+
+# Tauri updater signing keys — never commit these
+*.key
+*.key.pub
+.tauri/
