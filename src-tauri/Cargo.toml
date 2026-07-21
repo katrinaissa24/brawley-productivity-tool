@@ -1,6 +1,6 @@
 [package]
 name = "flow"
-version = "0.1.3"
+version = "0.1.4"
 description = "Brawley — the calm personal task manager"
 authors = ["Katrina"]
 edition = "2021"

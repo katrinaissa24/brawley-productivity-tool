@@ -1,5 +1,7 @@
-// Generates app-icon.png (1024×1024) — indigo rounded square with a three-bar
-// "flow" glyph. Pure Node (zlib PNG encoder), no image deps required.
+// Generates the OLD placeholder app-icon.png (1024×1024) — indigo rounded
+// square with a three-bar "flow" glyph. Superseded by the real Brawley logo;
+// do not run this, it will overwrite app-icon.png with the old placeholder.
+// Kept only for reference. Pure Node (zlib PNG encoder), no image deps.
 import { deflateSync } from "node:zlib";
 import { writeFileSync } from "node:fs";
 
