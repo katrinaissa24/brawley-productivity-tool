@@ -22,6 +22,8 @@ export type DropData =
       sprintId: string | null;
       /** Remove dropped tasks from their sprint (project Backlog column). */
       unassign?: boolean;
+      /** Today columns: dropping a rolled-over task re-commits it to today. */
+      resetRollover?: boolean;
       listIds: string[];
     }
   | { type: "backlog" };
@@ -69,6 +71,7 @@ export function DroppableColumn({
   status,
   sprintId,
   unassign,
+  resetRollover,
   listIds,
   children,
   className,
@@ -77,13 +80,14 @@ export function DroppableColumn({
   status: TaskStatus;
   sprintId: string | null;
   unassign?: boolean;
+  resetRollover?: boolean;
   listIds: string[];
   children: (isOver: boolean) => ReactNode;
   className?: string;
 }) {
   const { setNodeRef, isOver, active } = useDroppable({
     id: `col:${id}`,
-    data: { type: "column", status, sprintId, unassign, listIds } satisfies DropData,
+    data: { type: "column", status, sprintId, unassign, resetRollover, listIds } satisfies DropData,
   });
   const taskOver = isOver && active?.data.current?.type === "task";
   return (

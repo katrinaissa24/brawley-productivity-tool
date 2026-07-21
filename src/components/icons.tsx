@@ -99,6 +99,8 @@ export const IconCheck = (p: P) => base(p, <polyline points="5 12.5 10 17.5 19 7
 
 export const IconChevronDown = (p: P) => base(p, <polyline points="6 9 12 15 18 9" />);
 
+export const IconChevronUp = (p: P) => base(p, <polyline points="6 15 12 9 18 15" />);
+
 export const IconChevronRight = (p: P) => base(p, <polyline points="9 6 15 12 9 18" />);
 
 export const IconChevronLeft = (p: P) => base(p, <polyline points="15 6 9 12 15 18" />);

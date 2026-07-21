@@ -29,7 +29,7 @@ export function TodayView() {
   const [doneOpen, setDoneOpen] = useState(true);
 
   const draggingIds = useUI((s) => s.draggingIds);
-  const { focus, later, done } = useMemo(
+  const { focus, later, doLater, done } = useMemo(
     () => todayLists(tasks, projects, settings.todayCap),
     [tasks, projects, settings.todayCap],
   );
@@ -54,7 +54,7 @@ export function TodayView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const dayCleared = open.length === 0 && done.length > 0;
+  const dayCleared = open.length === 0 && doLater.length === 0 && done.length > 0;
 
   return (
     <ViewShell
@@ -82,7 +82,7 @@ export function TodayView() {
       }
     >
       <div className="max-w-[660px]">
-        {open.length === 0 && done.length === 0 && (
+        {open.length === 0 && doLater.length === 0 && done.length === 0 && (
           <EmptyState
             icon={<IconSun size={30} />}
             title="Nothing planned for today"
@@ -107,7 +107,7 @@ export function TodayView() {
           </div>
         )}
 
-        {(open.length > 0 || done.length > 0) && (
+        {(open.length > 0 || doLater.length > 0 || done.length > 0) && (
           <>
             <SortableContext items={openIds} strategy={noSortingStrategy}>
               {(() => {
@@ -124,6 +124,7 @@ export function TodayView() {
                     id={`today:${status}`}
                     status={status}
                     sprintId={null}
+                    resetRollover
                     listIds={list.map((t) => t.id)}
                   >
                     {(isOver) => (
@@ -161,6 +162,30 @@ export function TodayView() {
                 );
               })()}
 
+              {doLater.length > 0 && (
+                <div className="mb-5 rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-3">
+                  <SectionLabel className="mb-0.5 text-amber-600 dark:text-amber-400">
+                    Do later · {doLater.length}
+                  </SectionLabel>
+                  <p className="mb-2 text-[11.5px] text-ink3">
+                    Slipped from a previous day — moved forward for you. Start one, or drag it
+                    up to commit.
+                  </p>
+                  <SortableContext
+                    items={doLater.filter((t) => !draggingIds.includes(t.id)).map((t) => t.id)}
+                    strategy={noSortingStrategy}
+                  >
+                    <div className="flex flex-col gap-2">
+                      {doLater.map((t) => (
+                        <SortableTask key={t.id} task={t} listIds={doLater.map((x) => x.id)}>
+                          <TaskCard task={t} showProject dense />
+                        </SortableTask>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </div>
+              )}
+
               {later.length > 0 && (
                 <div className="mt-1 mb-5">
                   <button
@@ -183,7 +208,7 @@ export function TodayView() {
               )}
             </SortableContext>
 
-            <DroppableColumn id="today:done" status="done" sprintId={null} listIds={[]}>
+            <DroppableColumn id="today:done" status="done" sprintId={null} resetRollover listIds={[]}>
               {(isOver) => (
                 <div
                   className={cn(

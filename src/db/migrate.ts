@@ -1,8 +1,12 @@
 import type { SqlDriver } from "./driver";
 import m001 from "./migrations/001_init.sql?raw";
+import m002 from "./migrations/002_calendar.sql?raw";
 
 // Numbered migrations — append only, never mutate old entries.
-const MIGRATIONS: { v: number; sql: string }[] = [{ v: 1, sql: m001 }];
+const MIGRATIONS: { v: number; sql: string }[] = [
+  { v: 1, sql: m001 },
+  { v: 2, sql: m002 },
+];
 
 function splitStatements(sql: string): string[] {
   return sql

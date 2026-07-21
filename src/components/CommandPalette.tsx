@@ -9,6 +9,7 @@ import { exportBackup } from "../lib/native";
 import {
   IconArchive,
   IconArrowRight,
+  IconCalendar,
   IconChart,
   IconCheckCircle,
   IconCircle,
@@ -88,6 +89,7 @@ export function CommandPalette() {
       { id: "a:sprint", kind: "action", title: "Go to Sprint", icon: <IconZap size={14} />, run: () => (close(), ui.go({ name: "sprint" })) },
       { id: "a:review", kind: "action", title: "Go to Review", icon: <IconCheckCircle size={14} />, run: () => (close(), ui.go({ name: "review" })) },
       { id: "a:insights", kind: "action", title: "Go to Insights", icon: <IconChart size={14} />, run: () => (close(), ui.go({ name: "insights" })) },
+      { id: "a:calendar", kind: "action", title: "Go to Calendar", icon: <IconCalendar size={14} />, run: () => (close(), ui.go({ name: "calendar" })) },
       { id: "a:plan", kind: "action", title: "Plan my day", icon: <IconSparkle size={14} />, run: () => (close(), ui.go({ name: "today" }), ui.setPlanDayOpen(true)) },
       {
         id: "a:start-review",

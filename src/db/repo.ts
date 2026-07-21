@@ -63,6 +63,9 @@ const toTask = (r: Row): Task => ({
   priority: sn(r, "priority") as Task["priority"],
   dueDate: sn(r, "due_date"),
   doDate: sn(r, "do_date"),
+  doTime: sn(r, "do_time"),
+  durationMinutes: nn(r, "duration_minutes"),
+  rolloverFrom: sn(r, "rollover_from"),
   estimateMinutes: nn(r, "estimate_minutes"),
   recurrence: sn(r, "recurrence"),
   sortOrder: n(r, "sort_order"),
@@ -178,8 +181,8 @@ export async function upsertMilestone(m: Milestone): Promise<void> {
 export async function upsertTask(t: Task): Promise<void> {
   const db = await getDb();
   await db.execute(
-    `INSERT OR REPLACE INTO tasks (id, project_id, goal_id, sprint_id, title, notes, status, priority, due_date, do_date, estimate_minutes, recurrence, sort_order, completed_at, archived_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO tasks (id, project_id, goal_id, sprint_id, title, notes, status, priority, due_date, do_date, do_time, duration_minutes, rollover_from, estimate_minutes, recurrence, sort_order, completed_at, archived_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       t.id,
       t.projectId,
@@ -191,6 +194,9 @@ export async function upsertTask(t: Task): Promise<void> {
       t.priority,
       t.dueDate,
       t.doDate,
+      t.doTime,
+      t.durationMinutes,
+      t.rolloverFrom,
       t.estimateMinutes,
       t.recurrence,
       t.sortOrder,

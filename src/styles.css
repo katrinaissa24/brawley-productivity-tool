@@ -90,6 +90,20 @@ body.is-dragging * {
   cursor: grabbing !important;
 }
 
+/* Calendar pointer drags: cursor matches the gesture for its whole duration */
+body.cal-grabbing,
+body.cal-grabbing * {
+  cursor: grabbing !important;
+}
+body.cal-resizing,
+body.cal-resizing * {
+  cursor: ns-resize !important;
+}
+body.cal-creating,
+body.cal-creating * {
+  cursor: crosshair !important;
+}
+
 /* The drag overlay sizes itself from its children, not from the (hidden)
    source node — dnd-kit sets inline width/height from a zero-sized rect. */
 .drag-overlay-autosize {

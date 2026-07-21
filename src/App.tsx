@@ -14,7 +14,7 @@ import { useData } from "./stores/data";
 import { useSettings } from "./stores/settings";
 import { useUI } from "./stores/ui";
 import { activeProjects } from "./stores/selectors";
-import { reorderIds } from "./lib/util";
+import { reorderIds, todayStr } from "./lib/util";
 import { moveTasksToProject } from "./lib/actions";
 import { comboToAccelerator, isEditableTarget, matchCombo } from "./lib/shortcuts";
 import { syncGlobalShortcut } from "./lib/native";
@@ -35,6 +35,7 @@ import { BulkBar, confirmDeleteTasks } from "./components/BulkBar";
 import { BreakdownModal } from "./components/BreakdownModal";
 import { InboxView } from "./views/InboxView";
 import { TodayView } from "./views/TodayView";
+import { CalendarView } from "./views/CalendarView";
 import { ProjectView } from "./views/ProjectView";
 import { SettingsView } from "./views/SettingsView";
 import { SprintView } from "./views/SprintView";
@@ -52,6 +53,7 @@ function boot(): Promise<void> {
       const settingsJson = await useData.getState().loadAll();
       useSettings.getState().init(settingsJson);
       useData.getState().ensureActiveSprint();
+      useData.getState().rolloverOverdueTasks();
 
       if (isTauri) {
         // Capture window inserts → reload; keep the user's global shortcut registered.
@@ -183,6 +185,8 @@ function CurrentView() {
       return <ReviewView />;
     case "insights":
       return <InsightsView />;
+    case "calendar":
+      return <CalendarView />;
     case "project":
       return <ProjectView key={view.projectId} projectId={view.projectId} />;
     case "goal":
@@ -271,6 +275,19 @@ export default function App() {
         console.error("boot failed", e);
         setBootError(String(e));
       });
+  }, []);
+
+  useEffect(() => {
+    // Roll unfinished tasks forward when the calendar day flips while running.
+    let day = todayStr();
+    const id = window.setInterval(() => {
+      const now = todayStr();
+      if (now !== day) {
+        day = now;
+        useData.getState().rolloverOverdueTasks();
+      }
+    }, 60_000);
+    return () => window.clearInterval(id);
   }, []);
 
   useGlobalShortcuts(booted);
@@ -403,6 +420,12 @@ export default function App() {
 
     if (o.type === "column") {
       const moved = adoptContainer(o.status, o.sprintId, o.unassign);
+      if (o.resetRollover) {
+        // Dropping into a Today section is a fresh commitment — clear "Do later".
+        for (const task of moved) {
+          if (task.rolloverFrom != null) data.updateTask(task.id, { doDate: todayStr() });
+        }
+      }
       // append at the end of the column, keeping the dragged order
       const lastId = o.listIds.filter((id) => !groupIds.includes(id)).pop();
       const last = lastId ? data.tasks.find((x) => x.id === lastId) : undefined;

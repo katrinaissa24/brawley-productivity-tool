@@ -14,6 +14,7 @@ import {
 } from "../stores/selectors";
 import { cn } from "../lib/util";
 import {
+  IconCalendar,
   IconChart,
   IconCheckCircle,
   IconInbox,
@@ -237,6 +238,12 @@ export function Sidebar() {
           active={is("insights")}
           onClick={() => go({ name: "insights" })}
           shortcut="⌘5"
+        />
+        <NavItem
+          icon={<IconCalendar size={15} />}
+          label="Calendar"
+          active={is("calendar")}
+          onClick={() => go({ name: "calendar" })}
         />
       </nav>
 

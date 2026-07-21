@@ -53,6 +53,12 @@ interface DataState {
   // Tasks
   addTask(input: Partial<Task> & { title: string }): Task;
   updateTask(id: string, patch: Partial<Task>): void;
+  /**
+   * Shift unfinished tasks planned before today onto today, flagging them as
+   * rolled over (rolloverFrom keeps the first planned day) so Today can show
+   * them under "Do later". Runs at boot and when the date flips at midnight.
+   */
+  rolloverOverdueTasks(): void;
   trySetStatus(id: string, status: TaskStatus): { ok: boolean; msg?: string };
   completeTask(id: string): void;
   archiveTask(id: string): void;
@@ -208,6 +214,9 @@ export const useData = create<DataState>((set, get) => ({
       priority: input.priority ?? null,
       dueDate: input.dueDate ?? null,
       doDate: input.doDate ?? null,
+      doTime: input.doTime ?? null,
+      durationMinutes: input.durationMinutes ?? null,
+      rolloverFrom: null,
       estimateMinutes: input.estimateMinutes ?? null,
       recurrence: input.recurrence ?? null,
       sortOrder: input.sortOrder ?? nextSortOrder(get().tasks),
@@ -231,8 +240,30 @@ export const useData = create<DataState>((set, get) => ({
     if (patch.status && patch.status !== "done" && cur.status === "done") {
       next.completedAt = null;
     }
+    // A deliberate reschedule resolves the rollover — the task is planned again.
+    if ("doDate" in patch && !("rolloverFrom" in patch)) {
+      next.rolloverFrom = null;
+    }
     set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? next : t)) }));
     persist(() => repo.upsertTask(next));
+  },
+
+  rolloverOverdueTasks() {
+    const today = todayStr();
+    const stale = get().tasks.filter(
+      (t) => !t.archivedAt && t.status !== "done" && t.doDate != null && t.doDate < today,
+    );
+    if (stale.length === 0) return;
+    const now = nowISO();
+    const updated = stale.map((t) => ({
+      ...t,
+      doDate: today,
+      rolloverFrom: t.rolloverFrom ?? t.doDate,
+      updatedAt: now,
+    }));
+    const byId = new Map(updated.map((t) => [t.id, t]));
+    set((s) => ({ tasks: s.tasks.map((t) => byId.get(t.id) ?? t) }));
+    persist(() => Promise.all(updated.map((t) => repo.upsertTask(t))));
   },
 
   trySetStatus(id, status) {
@@ -302,6 +333,7 @@ export const useData = create<DataState>((set, get) => ({
         sprintId: null,
         doDate,
         dueDate,
+        rolloverFrom: null,
         completedAt: null,
         archivedAt: null,
         sortOrder: nextSortOrder(get().tasks),
@@ -782,6 +814,9 @@ export const useData = create<DataState>((set, get) => ({
         priority: t.priority ?? null,
         dueDate: t.dueDate ?? null,
         doDate: t.doDate ?? null,
+        doTime: t.doTime ?? null,
+        durationMinutes: t.durationMinutes ?? null,
+        rolloverFrom: null,
         estimateMinutes: t.estimateMinutes ?? null,
         recurrence: t.recurrence ?? null,
         sortOrder: order,
