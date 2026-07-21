@@ -7,6 +7,7 @@ import { useUI } from "../stores/ui";
 import { ACCENT_COLORS, cn, DOW_LABELS } from "../lib/util";
 import { comboFromEvent, comboLabel, comboToAccelerator } from "../lib/shortcuts";
 import { exportBackup, importBackup, revealDb, syncGlobalShortcut } from "../lib/native";
+import { appVersion, checkForUpdate } from "../lib/updater";
 import { ViewShell } from "../components/ViewShell";
 import { Button, SectionLabel, Segmented, Select, TextInput, Toggle } from "../components/ui/primitives";
 import {
@@ -173,6 +174,12 @@ export function SettingsView() {
   const patch = useSettings((s) => s.patch);
   const insertDemoData = useData((s) => s.insertDemoData);
   const tasksCount = useData((s) => s.tasks.length);
+
+  const [version, setVersion] = useState("");
+  const [checking, setChecking] = useState(false);
+  useEffect(() => {
+    void appVersion().then(setVersion);
+  }, []);
 
   const section = view.name === "settings" ? (view.section ?? "general") : "general";
   const setSection = (id: string) => go({ name: "settings", section: id });
@@ -377,6 +384,35 @@ export function SettingsView() {
                       { value: "-1", label: "Hide immediately" },
                     ]}
                   />
+                </Row>
+              </Card>
+              <Card title="Updates">
+                <Row
+                  label="Version"
+                  desc={
+                    isTauri
+                      ? "Flow checks for updates automatically on launch."
+                      : "Version info is available in the packaged desktop app."
+                  }
+                >
+                  <span className="text-[13px] tabular-nums text-ink2">
+                    {version ? `v${version}` : "—"}
+                  </span>
+                </Row>
+                <Row
+                  label="Check for updates"
+                  desc="Fetch and install the latest signed release from GitHub."
+                >
+                  <Button
+                    icon={<IconDownload size={13} />}
+                    disabled={!isTauri || checking}
+                    onClick={() => {
+                      setChecking(true);
+                      void checkForUpdate({ silent: false }).finally(() => setChecking(false));
+                    }}
+                  >
+                    {checking ? "Checking…" : "Check now"}
+                  </Button>
                 </Row>
               </Card>
             </>

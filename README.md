@@ -49,6 +49,15 @@ Build a production `.app` / `.dmg`:
 npm run tauri build
 ```
 
+## Updates
+
+Flow updates itself. The installed app checks GitHub Releases on launch (and via
+**Settings → General → Updates → Check now**), then downloads and installs any
+newer signed build and restarts — no manual rebuild. Cutting a release is just
+pushing a version tag; CI does the rest. See
+[docs/RELEASING.md](docs/RELEASING.md) for the one-time signing-key setup and the
+release steps.
+
 ## Data
 
 Everything lives in one file: `~/Library/Application Support/flow/flow.db`.
