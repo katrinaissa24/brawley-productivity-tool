@@ -185,7 +185,7 @@ export function SettingsView() {
   const setSection = (id: string) => go({ name: "settings", section: id });
 
   return (
-    <ViewShell title="Settings" meta="Make Flow yours — every default is changeable">
+    <ViewShell title="Settings" meta="Make Brawley yours — every default is changeable">
       <div className="flex gap-8">
         <nav className="w-[170px] shrink-0">
           <div className="flex flex-col gap-0.5 sticky top-0">
@@ -391,7 +391,7 @@ export function SettingsView() {
                   label="Version"
                   desc={
                     isTauri
-                      ? "Flow checks for updates automatically on launch."
+                      ? "Brawley checks for updates automatically on launch."
                       : "Version info is available in the packaged desktop app."
                   }
                 >
@@ -552,7 +552,7 @@ export function SettingsView() {
                 <Row
                   key={r.key}
                   label={r.label}
-                  desc={r.global ? "Works anywhere in macOS, even when Flow is in the background." : undefined}
+                  desc={r.global ? "Works anywhere in macOS, even when Brawley is in the background." : undefined}
                 >
                   <ShortcutRecorder k={r.key} />
                 </Row>

@@ -81,7 +81,7 @@ export function Onboarding() {
         {step === 0 && (
           <div className="anim-fade">
             <IconSparkle size={24} className="text-accent" />
-            <h2 className="mt-2.5 text-[18px] font-semibold text-ink">Welcome to Flow</h2>
+            <h2 className="mt-2.5 text-[18px] font-semibold text-ink">Welcome to Brawley</h2>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink2">
               Everything lives in projects — work, learning, personal growth. Create your first
               one.
@@ -164,7 +164,7 @@ export function Onboarding() {
               )}
             </div>
             <p className="mt-4 text-center text-[11.5px] text-ink3">
-              Tip: ⌘⇧Space captures from anywhere in macOS — even when Flow is in the background.
+              Tip: ⌘⇧Space captures from anywhere in macOS — even when Brawley is in the background.
             </p>
           </div>
         )}

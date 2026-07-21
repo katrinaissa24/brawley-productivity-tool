@@ -1,4 +1,4 @@
-# Flow
+# Brawley
 
 **A local-first macOS task manager that kills overwhelm.**
 
@@ -51,7 +51,7 @@ npm run tauri build
 
 ## Updates
 
-Flow updates itself. The installed app checks GitHub Releases on launch (and via
+Brawley updates itself. The installed app checks GitHub Releases on launch (and via
 **Settings → General → Updates → Check now**), then downloads and installs any
 newer signed build and restarts — no manual rebuild. Cutting a release is just
 pushing a version tag; CI does the rest. See
@@ -60,6 +60,8 @@ release steps.
 
 ## Data
 
-Everything lives in one file: `~/Library/Application Support/flow/flow.db`.
-Export or import a backup, or reveal it in Finder, from **Settings → Data**.
-Nothing is hard-deleted without explicit confirmation — archive first.
+Everything lives in one file: `~/Library/Application Support/flow/flow.db`
+(kept at its original path from the app's early "Flow" name so existing
+installs keep their data across the rename). Export or import a backup, or
+reveal it in Finder, from **Settings → Data**. Nothing is hard-deleted without
+explicit confirmation — archive first.

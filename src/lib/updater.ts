@@ -38,7 +38,7 @@ export async function checkForUpdate({ silent }: { silent: boolean }): Promise<v
       title: `Update available — ${update.version}`,
       message: update.body?.trim()
         ? update.body.trim()
-        : "A newer version of Flow is ready. Download and install it now? Flow will restart to finish.",
+        : "A newer version of Brawley is ready. Download and install it now? Brawley will restart to finish.",
       confirmLabel: "Update & restart",
       onConfirm: () => void downloadInstallRestart(update),
     });

@@ -10,7 +10,7 @@ import { addDaysStr, daysUntil, todayStr } from "../lib/util";
  * checks the schedule; each event fires once (dedupe keys in localStorage).
  */
 
-const FIRED_KEY = "flow:notifFired";
+const FIRED_KEY = "brawley:notifFired";
 
 function firedMap(): Record<string, string> {
   try {

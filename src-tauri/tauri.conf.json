@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Flow",
+  "productName": "Brawley",
   "version": "0.1.1",
-  "identifier": "app.flow.desktop",
+  "identifier": "app.brawley.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Flow",
+        "title": "Brawley",
         "width": 1180,
         "height": 780,
         "minWidth": 920,

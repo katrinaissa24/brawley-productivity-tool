@@ -25,8 +25,8 @@ export function applyTheme(settings: Settings): void {
   root.classList.toggle("dark", isDark(settings));
   root.style.setProperty("--c-accent", hexToTriple(settings.accentColor));
   try {
-    localStorage.setItem("flow:themeCache", settings.theme);
-    localStorage.setItem("flow:accentCache", hexToTriple(settings.accentColor));
+    localStorage.setItem("brawley:themeCache", settings.theme);
+    localStorage.setItem("brawley:accentCache", hexToTriple(settings.accentColor));
   } catch {
     /* private mode etc. */
   }

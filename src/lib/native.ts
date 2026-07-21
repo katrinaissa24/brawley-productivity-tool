@@ -50,7 +50,7 @@ export async function importBackup(): Promise<void> {
   ui.ask({
     title: "Import backup?",
     message:
-      "This replaces ALL current data with the backup and restarts Flow. This cannot be undone.",
+      "This replaces ALL current data with the backup and restarts Brawley. This cannot be undone.",
     confirmLabel: "Replace & restart",
     danger: true,
     onConfirm: () => {

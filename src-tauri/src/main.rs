@@ -4,6 +4,9 @@ use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 /// Spec §3: the database lives at ~/Library/Application Support/flow/flow.db
+///
+/// Kept as "flow" (the app's original name) rather than renamed to "brawley"
+/// so existing installs keep finding their data after the rename/update.
 fn db_dir() -> std::path::PathBuf {
     dirs::home_dir()
         .expect("no home directory")
@@ -110,7 +113,7 @@ fn main() {
             _ => {}
         })
         .build(tauri::generate_context!())
-        .expect("error while running Flow")
+        .expect("error while running Brawley")
         .run(|app, event| {
             if let RunEvent::Reopen { .. } = event {
                 if let Some(win) = app.get_webview_window("main") {

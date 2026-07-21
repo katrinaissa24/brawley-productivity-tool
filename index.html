@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Flow</title>
+    <title>Brawley</title>
     <script>
       // Pre-hydration theme to avoid a light-mode flash.
       try {
-        var t = localStorage.getItem("flow:themeCache");
+        var t = localStorage.getItem("brawley:themeCache");
         var dark =
           t === "dark" ||
           (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
         if (dark) document.documentElement.classList.add("dark");
-        var a = localStorage.getItem("flow:accentCache");
+        var a = localStorage.getItem("brawley:accentCache");
         if (a) document.documentElement.style.setProperty("--c-accent", a);
       } catch (e) {}
     </script>

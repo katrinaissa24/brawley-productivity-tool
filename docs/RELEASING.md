@@ -1,6 +1,6 @@
 # Releasing & auto-updates
 
-Flow ships with Tauri's built-in updater. Once set up, the installed app checks
+Brawley ships with Tauri's built-in updater. Once set up, the installed app checks
 GitHub on every launch (and from **Settings → General → Updates → Check now**),
 and offers to download + install any newer **signed** release, then restarts
 itself. No more manual `git pull` + rebuild.
@@ -86,11 +86,11 @@ That's it for setup.
 Pushing the `v*` tag triggers the **Release** workflow, which builds a signed
 universal macOS app, creates a GitHub Release, and uploads:
 
-- `Flow_x.y.z_universal.dmg` — for a fresh manual install
-- `Flow_universal.app.tar.gz` + `.sig` — the update bundle
+- `Brawley_x.y.z_universal.dmg` — for a fresh manual install
+- `Brawley_universal.app.tar.gz` + `.sig` — the update bundle
 - `latest.json` — the manifest the running app polls
 
-The next time your installed Flow launches (or you hit **Check now**), it sees
+The next time your installed Brawley launches (or you hit **Check now**), it sees
 the new `latest.json`, prompts you, and updates itself.
 
 ---

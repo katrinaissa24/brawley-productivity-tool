@@ -483,7 +483,7 @@ export default function App() {
     return (
       <div className="flex h-screen items-center justify-center bg-app px-8">
         <div className="max-w-[420px] rounded-xl border border-red-500/30 bg-card p-6 shadow-card">
-          <p className="text-[15px] font-semibold text-ink">Flow couldn't start</p>
+          <p className="text-[15px] font-semibold text-ink">Brawley couldn't start</p>
           <p className="mt-2 text-[13px] leading-relaxed text-ink2">
             The database failed to open. Try restarting the app — if it persists, your data file
             may be locked by another process.
@@ -501,7 +501,7 @@ export default function App() {
       <div className="flex h-screen items-center justify-center bg-app">
         <div className="flex flex-col items-center gap-3 anim-fade">
           <div className="h-10 w-10 rounded-xl bg-accent shadow-cardHover animate-pulse" />
-          <span className="text-[13px] font-medium text-ink3">Flow</span>
+          <span className="text-[13px] font-medium text-ink3">Brawley</span>
         </div>
       </div>
     );
