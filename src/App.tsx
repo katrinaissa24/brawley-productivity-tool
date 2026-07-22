@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   PointerSensor,
   useSensor,
   useSensors,
@@ -511,6 +512,9 @@ export default function App() {
     <DndContext
       sensors={sensors}
       collisionDetection={collisionDetection}
+      // Lists reflow while a card is lifted (its slot collapses) — keep
+      // droppable rects fresh so drops land where the pointer actually is.
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}

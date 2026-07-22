@@ -264,9 +264,18 @@ export function ProjectView({ projectId }: { projectId: string }) {
             tasks={filtered}
             sprintId={null}
             projectBoard
-            onQuickAdd={(title) =>
-              addTask({ title, projectId, priority: settings.defaultPriority })
-            }
+            onQuickAdd={(title, status, sprintId) => {
+              const t = addTask({
+                title,
+                projectId,
+                priority: settings.defaultPriority,
+                sprintId: sprintId ?? null,
+              });
+              if (status !== "todo") {
+                const r = useData.getState().trySetStatus(t.id, status);
+                if (!r.ok && r.msg) useUI.getState().toast(r.msg, "error");
+              }
+            }}
           />
         ) : (
           <ProjectList tasks={filtered} groupBy={groupBy} projectId={projectId} />

@@ -133,9 +133,13 @@ export function SprintView() {
             tasks={committed}
             sprintId={sprint.id}
             showProject
-            onQuickAdd={(title) =>
-              addTask({ title, sprintId: sprint.id, priority: settings.defaultPriority })
-            }
+            onQuickAdd={(title, status) => {
+              const t = addTask({ title, sprintId: sprint.id, priority: settings.defaultPriority });
+              if (status !== "todo") {
+                const r = useData.getState().trySetStatus(t.id, status);
+                if (!r.ok && r.msg) useUI.getState().toast(r.msg, "error");
+              }
+            }}
           />
           {committed.length === 0 && (
             <p className="mt-3 text-center text-[12.5px] text-ink3">
