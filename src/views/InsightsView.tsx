@@ -21,7 +21,7 @@ import {
   doneInRange,
   goalProgress,
   sprintLabel,
-  trendByDay,
+  trendByDayStacked,
   workloadMinutes,
 } from "../stores/selectors";
 import { addDaysStr, cn, daysUntil, formatMinutes, parseDateStr, plural, todayStr } from "../lib/util";
@@ -62,6 +62,7 @@ export function InsightsView() {
     y: number;
     date: string;
     count: number;
+    parts: { name: string; color: string; value: number }[];
   } | null>(null);
   const trendRef = useRef<HTMLDivElement>(null);
   const trendFlip =
@@ -112,7 +113,10 @@ export function InsightsView() {
   }, [doneTasks, projs, focusMode]);
   const focusTotal = focusData.reduce((a, d) => a + d.value, 0);
 
-  const trend = useMemo(() => trendByDay(tasks, from, to), [tasks, from, to]);
+  const trend = useMemo(
+    () => trendByDayStacked(tasks, projects, from, to),
+    [tasks, projects, from, to],
+  );
   const sprintTasksAll = sprint ? tasks.filter((t) => t.sprintId === sprint.id && !t.archivedAt) : [];
   const sprintDone = sprintTasksAll.filter((t) => t.status === "done");
   const sortedGoals = activeGoals(goals);
@@ -226,12 +230,12 @@ export function InsightsView() {
             )}
           </ChartCard>
 
-          {/* 5 — completion trend */}
+          {/* 5 — completion trend, stacked by project */}
           <ChartCard title="Completion trend" className="col-span-2">
             <div ref={trendRef} className="relative h-[150px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={trend}
+                  data={trend.rows}
                   margin={{ top: 4, right: 4, bottom: 0, left: 4 }}
                   onMouseMove={(st) => {
                     const s = st as {
@@ -239,14 +243,25 @@ export function InsightsView() {
                       activeLabel?: string | number;
                       chartX?: number;
                       chartY?: number;
-                      activePayload?: { value?: number }[];
                     };
                     if (s?.isTooltipActive && s.activeLabel != null && typeof s.chartX === "number") {
+                      const date = String(s.activeLabel);
+                      const row = trend.rows.find((r) => r.date === date);
+                      const parts = row
+                        ? trend.series
+                            .map((sr) => ({
+                              name: sr.name,
+                              color: sr.color,
+                              value: Number(row[sr.key] ?? 0),
+                            }))
+                            .filter((p) => p.value > 0)
+                        : [];
                       setTrendHover({
                         x: s.chartX,
                         y: s.chartY ?? 0,
-                        date: String(s.activeLabel),
-                        count: Number(s.activePayload?.[0]?.value ?? 0),
+                        date,
+                        count: Number(row?.count ?? 0),
+                        parts,
                       });
                     } else {
                       setTrendHover(null);
@@ -256,7 +271,7 @@ export function InsightsView() {
                 >
                   <XAxis
                     dataKey="date"
-                    tickFormatter={(d: string) => format(parseDateStr(d), trend.length > 40 ? "MMM d" : "EEE d")}
+                    tickFormatter={(d: string) => format(parseDateStr(d), trend.rows.length > 40 ? "MMM d" : "EEE d")}
                     tick={{ fontSize: 10, fill: dark ? "#78787f" : "#a1a1aa" }}
                     axisLine={{ stroke: dark ? "#3a3a41" : "#e4e4e7" }}
                     tickLine={false}
@@ -266,19 +281,27 @@ export function InsightsView() {
                   <YAxis hide allowDecimals={false} domain={[0, "dataMax"]} />
                   {/* invisible tooltip keeps hover state alive; the visible box follows the mouse below */}
                   <Tooltip content={() => null} cursor={false} isAnimationActive={false} />
-                  <Bar
-                    dataKey="count"
-                    fill={settings.accentColor}
-                    radius={[3, 3, 0, 0]}
-                    isAnimationActive={false}
-                    maxBarSize={26}
-                    activeBar={{
-                      fill: settings.accentColor,
-                      stroke: dark ? "#9d9da6" : "#82828c",
-                      strokeWidth: 1.5,
-                      radius: 4,
-                    }}
-                  />
+                  {trend.series.length === 0 ? (
+                    <Bar
+                      dataKey="count"
+                      fill={settings.accentColor}
+                      radius={[3, 3, 0, 0]}
+                      isAnimationActive={false}
+                      maxBarSize={26}
+                    />
+                  ) : (
+                    trend.series.map((s, i) => (
+                      <Bar
+                        key={s.key}
+                        dataKey={s.key}
+                        stackId="trend"
+                        fill={s.color}
+                        isAnimationActive={false}
+                        maxBarSize={26}
+                        radius={i === trend.series.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+                      />
+                    ))
+                  )}
                 </BarChart>
               </ResponsiveContainer>
               {trendHover && (
@@ -299,6 +322,17 @@ export function InsightsView() {
                       ? "Nothing completed"
                       : `${plural(trendHover.count, "task")} completed`}
                   </p>
+                  {trendHover.parts.length > 0 && (
+                    <div className="mt-1 flex flex-col gap-0.5 border-t border-bord pt-1">
+                      {trendHover.parts.map((p) => (
+                        <div key={p.name} className="flex items-center gap-1.5 text-[11.5px]">
+                          <span className="h-2 w-2 shrink-0 rounded-[3px]" style={{ background: p.color }} />
+                          <span className="max-w-[160px] truncate text-ink2">{p.name}</span>
+                          <span className="ml-auto pl-3 tabular-nums text-ink3">{p.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

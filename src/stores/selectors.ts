@@ -65,6 +65,23 @@ export function unscheduledTasks(tasks: Task[], projectId: string | null): Task[
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
+/** Pseudo-project key and swatch for Inbox tasks on the calendar. */
+export const CAL_INBOX_KEY = "inbox";
+export const INBOX_COLOR = "#94A3B8";
+
+/**
+ * The calendar's active project — where new calendar events land. Stored in
+ * viewPrefs ("cal.project"); falls back to the first project, then Inbox.
+ */
+export function calendarActiveKey(
+  viewPrefs: Record<string, string>,
+  projs: Project[],
+): string {
+  const stored = viewPrefs["cal.project"] ?? "";
+  if (stored === CAL_INBOX_KEY) return CAL_INBOX_KEY;
+  return projs.some((p) => p.id === stored) ? stored : projs[0]?.id ?? CAL_INBOX_KEY;
+}
+
 export function statusColumns(blockedEnabled: boolean): TaskStatus[] {
   return blockedEnabled
     ? ["todo", "in_progress", "blocked", "done"]
@@ -204,6 +221,68 @@ export function trendByDay(tasks: Task[], from: string, to: string): { date: str
     out.push({ date: key, count: counts.get(key) ?? 0 });
   }
   return out;
+}
+
+export interface TrendSeries {
+  key: string; // project id or CAL_INBOX_KEY
+  name: string;
+  color: string;
+}
+
+export interface StackedTrend {
+  /** One row per day: { date, count (total), [series.key]: n } */
+  rows: Record<string, string | number>[];
+  /** Only series with at least one completion in range, sidebar order; Inbox last. */
+  series: TrendSeries[];
+}
+
+/** Completions per day split by project — feeds the stacked trend bars. */
+export function trendByDayStacked(
+  tasks: Task[],
+  projects: Project[],
+  from: string,
+  to: string,
+): StackedTrend {
+  const perDay = new Map<string, Map<string, number>>();
+  const seen = new Set<string>();
+  for (const t of doneInRange(tasks, from, to)) {
+    const day = localDateOf(t.completedAt!);
+    const key = t.projectId ?? CAL_INBOX_KEY;
+    seen.add(key);
+    const m = perDay.get(day) ?? new Map<string, number>();
+    m.set(key, (m.get(key) ?? 0) + 1);
+    perDay.set(day, m);
+  }
+
+  const series: TrendSeries[] = [
+    ...projects
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .filter((p) => seen.has(p.id))
+      .map((p) => ({ key: p.id, name: p.name, color: p.color })),
+    ...(seen.has(CAL_INBOX_KEY)
+      ? [{ key: CAL_INBOX_KEY, name: "Inbox", color: INBOX_COLOR }]
+      : []),
+  ];
+
+  const rows: Record<string, string | number>[] = [];
+  const days = Math.max(0, daysBetween(from, to));
+  for (let i = 0; i <= days; i++) {
+    const d = new Date(parseDateStr(from));
+    d.setDate(d.getDate() + i);
+    const key = format(d, "yyyy-MM-dd");
+    const m = perDay.get(key);
+    const row: Record<string, string | number> = { date: key, count: 0 };
+    let total = 0;
+    for (const s of series) {
+      const n = m?.get(s.key) ?? 0;
+      row[s.key] = n;
+      total += n;
+    }
+    row.count = total;
+    rows.push(row);
+  }
+  return { rows, series };
 }
 
 export interface PlanCandidate {

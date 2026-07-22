@@ -84,7 +84,7 @@ export function TaskBoard({
   sprintId: string | null;
   showProject?: boolean;
   projectBoard?: boolean;
-  onQuickAdd?: (title: string, status: TaskStatus) => void;
+  onQuickAdd?: (title: string, status: TaskStatus, sprintId: string | null) => void;
 }) {
   const settings = useSettings((s) => s.settings);
   const sprints = useData((s) => s.sprints);
@@ -153,6 +153,7 @@ export function TaskBoard({
       status: "todo",
       dot: "bg-zinc-400",
       sprintId: active?.id ?? null,
+      quickAdd: true,
       filter: (t) => t.status === "todo" && !!active && t.sprintId === active.id,
     });
     for (const st of statuses) {
@@ -168,6 +169,7 @@ export function TaskBoard({
               ? "bg-red-500"
               : "bg-emerald-500",
         sprintId: active?.id ?? null,
+        quickAdd: true,
         filter: (t) => t.status === st,
       });
     }
@@ -186,7 +188,7 @@ export function TaskBoard({
                 ? "bg-red-500"
                 : "bg-emerald-500",
         sprintId,
-        quickAdd: st === "todo",
+        quickAdd: true,
         filter: (t) => t.status === st,
       });
     }
@@ -230,9 +232,11 @@ export function TaskBoard({
             className="flex h-full w-[272px] shrink-0 flex-col"
           >
             {(isOver) => (
+              // The box fills the whole lane so a task can be dropped anywhere
+              // inside the column, not just on its header.
               <div
                 className={cn(
-                  "flex max-h-full flex-col rounded-xl border bg-panel/50 transition-all duration-150",
+                  "flex min-h-0 flex-1 flex-col rounded-xl border bg-panel/50 transition-all duration-150",
                   isOver ? "border-accent/50 ring-2 ring-accent/20 bg-accent/[0.04]" : "border-bord/70",
                 )}
               >
@@ -262,7 +266,7 @@ export function TaskBoard({
                   )}
                 </div>
                 <SortableContext items={ids} strategy={noSortingStrategy}>
-                  <div className="flex min-h-[60px] flex-col gap-2 overflow-y-auto p-2">
+                  <div className="flex min-h-[60px] flex-1 flex-col gap-2 overflow-y-auto p-2">
                     {colTasks.map((t) => (
                       <SortableTask key={t.id} task={t} listIds={ids}>
                         <TaskCard task={t} showProject={showProject} />
@@ -274,7 +278,7 @@ export function TaskBoard({
                       </p>
                     )}
                     {col.quickAdd && onQuickAdd && (
-                      <QuickAdd onAdd={(title) => onQuickAdd(title, col.status)} />
+                      <QuickAdd onAdd={(title) => onQuickAdd(title, col.status, col.sprintId)} />
                     )}
                   </div>
                 </SortableContext>
