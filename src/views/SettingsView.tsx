@@ -108,7 +108,7 @@ const SHORTCUT_ROWS: { key: keyof ShortcutMap; label: string; global?: boolean }
   { key: "goInbox", label: "Go to Inbox" },
   { key: "goToday", label: "Go to Today" },
   { key: "goSprint", label: "Go to Sprint" },
-  { key: "goReview", label: "Go to Review" },
+  { key: "goReview", label: "Go to Sprint reviews" },
   { key: "goInsights", label: "Go to Insights" },
   { key: "goFirstProject", label: "Go to first project" },
 ];

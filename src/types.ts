@@ -137,6 +137,15 @@ export interface ShortcutMap {
   goFirstProject: string;
 }
 
+/** A folder on disk the user connected to Spaces. */
+export interface SpaceRef {
+  id: string;
+  name: string;
+  path: string;
+  /** Absolute path of this space's Claude hand-off file, if one exists. */
+  claudeFile?: string | null;
+}
+
 export interface Settings {
   theme: "system" | "light" | "dark";
   accentColor: string; // hex
@@ -165,6 +174,10 @@ export interface Settings {
   onboardingDone: boolean;
   lastPlanDate: string | null;
   viewPrefs: Record<string, string>;
+  /** Connected Spaces folders, in sidebar order. */
+  spaces: SpaceRef[];
+  /** Id of the space "Assign to Claude" writes into. */
+  claudeSpaceId: string | null;
 }
 
 export const DEFAULT_SHORTCUTS: ShortcutMap = {
@@ -210,15 +223,18 @@ export const DEFAULT_SETTINGS: Settings = {
   onboardingDone: false,
   lastPlanDate: null,
   viewPrefs: {},
+  spaces: [],
+  claudeSpaceId: null,
 };
 
 export type View =
   | { name: "inbox" }
   | { name: "today" }
   | { name: "sprint" }
-  | { name: "review" }
+  | { name: "reviews" }
   | { name: "insights" }
   | { name: "calendar" }
+  | { name: "spaces" }
   | { name: "project"; projectId: string }
   | { name: "goal"; goalId: string }
   | { name: "settings"; section?: string }

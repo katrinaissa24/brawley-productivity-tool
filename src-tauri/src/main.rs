@@ -55,6 +55,111 @@ fn restart_app(app: tauri::AppHandle) {
     app.restart();
 }
 
+/* ------------------------------ Spaces (files) ----------------------------- */
+//
+// Spaces browse and edit real markdown files on disk, so the same folder can be
+// opened by Claude (or any editor) at the same time. Everything is scoped to a
+// folder the user picked in a native dialog — we never invent paths here.
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FsEntry {
+    name: String,
+    path: String,
+    is_dir: bool,
+    size: u64,
+    modified_ms: Option<u64>,
+}
+
+fn modified_ms(meta: &std::fs::Metadata) -> Option<u64> {
+    meta.modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as u64)
+}
+
+#[tauri::command]
+fn fs_list_dir(path: String) -> Result<Vec<FsEntry>, String> {
+    let mut out: Vec<FsEntry> = Vec::new();
+    for entry in std::fs::read_dir(&path).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        // Dotfiles and macOS bookkeeping are noise in a notes folder.
+        if name.starts_with('.') {
+            continue;
+        }
+        let meta = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        out.push(FsEntry {
+            name,
+            path: entry.path().to_string_lossy().to_string(),
+            is_dir: meta.is_dir(),
+            size: meta.len(),
+            modified_ms: modified_ms(&meta),
+        });
+    }
+    out.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+    });
+    Ok(out)
+}
+
+#[tauri::command]
+fn fs_read_text(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fs_write_text(path: String, contents: String) -> Result<(), String> {
+    if let Some(dir) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, contents).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fs_create_dir(path: String) -> Result<(), String> {
+    std::fs::create_dir_all(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fs_rename(from: String, to: String) -> Result<(), String> {
+    if std::path::Path::new(&to).exists() {
+        return Err("A file with that name already exists".into());
+    }
+    std::fs::rename(&from, &to).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn fs_delete(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if p.is_dir() {
+        std::fs::remove_dir_all(p).map_err(|e| e.to_string())
+    } else {
+        std::fs::remove_file(p).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn fs_exists(path: String) -> Result<bool, String> {
+    Ok(std::path::Path::new(&path).exists())
+}
+
+#[tauri::command]
+fn fs_reveal(path: String) -> Result<(), String> {
+    std::process::Command::new("open")
+        .arg("-R")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn toggle_capture(app: &tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("capture") {
         if win.is_visible().unwrap_or(false) {
@@ -93,7 +198,15 @@ fn main() {
             export_db,
             import_db,
             restart_app,
-            set_capture_shortcut
+            set_capture_shortcut,
+            fs_list_dir,
+            fs_read_text,
+            fs_write_text,
+            fs_create_dir,
+            fs_rename,
+            fs_delete,
+            fs_exists,
+            fs_reveal
         ])
         .setup(|app| {
             // Default registration; the frontend re-registers with the user's

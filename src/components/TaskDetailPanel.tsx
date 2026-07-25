@@ -16,12 +16,19 @@ import {
   todayStr,
 } from "../lib/util";
 import { parseRecurrence, serializeRecurrence } from "../lib/recurrence";
+import { assignToClaude, claudeSpace, readClaudeTasks, useSpaces } from "../stores/spaces";
+import {
+  STATUS_LABEL as CLAUDE_STATUS_LABEL,
+  STATUS_STYLE as CLAUDE_STATUS_STYLE,
+  type ClaudeTask,
+} from "../lib/claudeTasks";
 import {
   IconArchive,
   IconCheck,
   IconEye,
   IconPencil,
   IconPlus,
+  IconRobot,
   IconTrash,
   IconX,
   IconZap,
@@ -29,6 +36,93 @@ import {
 import { Button, Segmented, Select, TextInput } from "./ui/primitives";
 
 marked.setOptions({ gfm: true, breaks: true });
+
+/**
+ * Hand a task to Claude: appends it to the space's markdown hand-off file, then
+ * mirrors back whatever status Claude has written into that file since.
+ */
+function ClaudeField({ task }: { task: { id: string; title: string; notes: string | null; priority: string | null; dueDate: string | null } }) {
+  const [handed, setHanded] = useState<ClaudeTask | null>(null);
+  const [busy, setBusy] = useState(false);
+  const go = useUI((s) => s.go);
+  const toast = useUI((s) => s.toast);
+  const space = claudeSpace();
+
+  const sync = async () => {
+    const found = await readClaudeTasks().catch(() => null);
+    setHanded(found?.tasks.find((t) => t.sourceTaskId === task.id) ?? null);
+  };
+
+  useEffect(() => {
+    setHanded(null);
+    if (space) void sync();
+  }, [task.id, space?.id]);
+
+  const openInSpaces = () => {
+    if (space) useSpaces.getState().setActiveSpace(space.id);
+    useSpaces.getState().setPanel("claude");
+    go({ name: "spaces" });
+  };
+
+  if (!space) {
+    return (
+      <button
+        onClick={() => go({ name: "spaces" })}
+        className="text-[12.5px] text-ink3 underline-offset-2 hover:text-ink2 hover:underline"
+      >
+        Connect a space first
+      </button>
+    );
+  }
+
+  if (handed) {
+    return (
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "rounded-md border px-1.5 py-0.5 text-[11.5px] font-medium",
+            CLAUDE_STATUS_STYLE[handed.status],
+          )}
+        >
+          {CLAUDE_STATUS_LABEL[handed.status]}
+        </span>
+        <button
+          onClick={openInSpaces}
+          className="text-[11.5px] text-ink3 underline-offset-2 hover:text-ink hover:underline"
+        >
+          Open in Spaces
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      size="xs"
+      variant="secondary"
+      icon={<IconRobot size={11} />}
+      disabled={busy}
+      onClick={() => {
+        setBusy(true);
+        void assignToClaude({
+          title: task.title,
+          details: task.notes,
+          priority: task.priority,
+          due: task.dueDate,
+          sourceTaskId: task.id,
+        })
+          .then(async (path) => {
+            if (path) toast("Handed off to Claude", "success");
+            await sync();
+          })
+          .catch((e) => toast(String(e), "error"))
+          .finally(() => setBusy(false));
+      }}
+    >
+      Assign to Claude
+    </Button>
+  );
+}
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -488,6 +582,9 @@ export function TaskDetailPanel() {
               ) : (
                 <span className="text-[12.5px] text-ink3">No active sprint</span>
               )}
+            </FieldRow>
+            <FieldRow label="Claude">
+              <ClaudeField task={task} />
             </FieldRow>
           </div>
 
