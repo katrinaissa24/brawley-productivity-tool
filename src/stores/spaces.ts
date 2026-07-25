@@ -5,6 +5,7 @@ import {
   joinPath,
   parentPath,
   pickFolder,
+  relPath,
   safeFileName,
   seedDemoSpace,
   spaceFs,
@@ -24,6 +25,13 @@ import {
 } from "../lib/claudeTasks";
 import { useSettings } from "./settings";
 import { useUI } from "./ui";
+
+/** One entry in the `@` file/folder picker — a flattened, searchable listing. */
+export interface MentionEntry {
+  path: string;
+  rel: string;
+  isDir: boolean;
+}
 
 export interface OpenDoc {
   path: string;
@@ -71,6 +79,10 @@ interface SpacesState {
   connectFolder(): Promise<void>;
   createDemoSpace(): Promise<void>;
   removeSpace(id: string): void;
+
+  /** Flattened file/folder listing per space root, for the `@` mention picker. */
+  fileIndex: Record<string, MentionEntry[]>;
+  buildFileIndex(spacePath: string, force?: boolean): Promise<void>;
 }
 
 /* ------------------------------ settings glue ------------------------------ */
@@ -103,6 +115,7 @@ export const useSpaces = create<SpacesState>((set, get) => ({
       // Read the hand-off file up front so the sidebar badge is honest before
       // the panel is ever opened.
       void get().loadClaude(true);
+      void get().buildFileIndex(space.path);
     }
   },
 
@@ -147,6 +160,7 @@ export const useSpaces = create<SpacesState>((set, get) => ({
       }
     }
     if (get().panel === "claude") await get().loadClaude(true);
+    void get().buildFileIndex(space.path, true);
   },
 
   doc: null,
@@ -347,6 +361,33 @@ export const useSpaces = create<SpacesState>((set, get) => ({
     const { claudeSpaceId } = useSettings.getState().settings;
     if (claudeSpaceId === id) useSettings.getState().patch({ claudeSpaceId: null });
     if (get().activeSpaceId === id) get().setActiveSpace(next[0]?.id ?? null);
+  },
+
+  fileIndex: {},
+
+  async buildFileIndex(spacePath, force = false) {
+    if (!force && get().fileIndex[spacePath]) return;
+    // A capped, depth-limited walk — enough for a mention picker without
+    // choking on someone connecting a huge folder.
+    const CAP = 1500;
+    const MAX_DEPTH = 8;
+    const out: MentionEntry[] = [];
+    const walk = async (dir: string, depth: number): Promise<void> => {
+      if (out.length >= CAP || depth > MAX_DEPTH) return;
+      let entries: FsEntry[];
+      try {
+        entries = await spaceFs.listDir(dir);
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        if (out.length >= CAP) return;
+        out.push({ path: e.path, rel: relPath(spacePath, e.path), isDir: e.isDir });
+        if (e.isDir) await walk(e.path, depth + 1);
+      }
+    };
+    await walk(spacePath, 0);
+    set({ fileIndex: { ...get().fileIndex, [spacePath]: out } });
   },
 }));
 
