@@ -55,6 +55,10 @@ export interface ClaudeTask {
   assignedAt: string | null;
   priority: string | null;
   due: string | null;
+  /** Skill Claude should invoke for this task, e.g. "deploy" from a `/deploy` mention. */
+  skill: string | null;
+  /** Paths (relative to the space root) Claude should read, edit, or create within. */
+  files: string[];
   details: string;
   report: string;
   /** Whole block including its heading, for round-tripping. */
@@ -73,10 +77,15 @@ export const CLAUDE_FILE_TEMPLATE = `# Claude Tasks
 
   Claude — how to work this file:
   1. Pick up every task whose Status is "assigned".
-  2. Set its Status to "in progress" while you work on it.
-  3. When you're finished, write what you did under "### Report" and set the
+  2. If a task lists a Skill, invoke that skill as your primary approach.
+  3. If a task lists Files, treat those paths (relative to this folder) as your
+     working scope — read, edit, or create within them, whether that's just
+     fetching information or making changes. Don't wander outside that scope
+     unless the task's own text tells you to.
+  4. Set its Status to "in progress" while you work on it.
+  5. When you're finished, write what you did under "### Report" and set the
      Status to "waiting for review" (or "blocked" with a reason if you're stuck).
-  4. Don't delete tasks — the app removes them once they're reviewed.
+  6. Don't delete tasks — the app removes them once they're reviewed.
 
   Allowed Status values: assigned · in progress · waiting for review · done · blocked
 -->
@@ -110,6 +119,16 @@ function section(block: string, name: string): string {
   return m ? m[1].replace(/^\s*\n/, "").replace(/\n?-{3,}\s*$/, "").trim() : "";
 }
 
+/** The Files field is a comma-separated list, each item optionally backtick-wrapped. */
+function fileList(block: string): string[] {
+  const raw = field(block, "Files");
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((s) => s.trim().replace(/^`+|`+$/g, "").trim())
+    .filter(Boolean);
+}
+
 /** Everything before the first task heading — title, instructions, etc. */
 export function preambleOf(md: string): string {
   const i = md.search(/^##\s+/m);
@@ -138,6 +157,8 @@ export function parseClaudeTasks(md: string): ClaudeTask[] {
       assignedAt: field(raw, "Assigned"),
       priority: field(raw, "Priority"),
       due: field(raw, "Due"),
+      skill: field(raw, "Skill")?.replace(/^\/+/, "").trim() || null,
+      files: fileList(raw),
       details: section(raw, "Details"),
       report: section(raw, "Report"),
       raw,
@@ -176,6 +197,8 @@ export interface AssignInput {
   priority?: string | null;
   due?: string | null;
   sourceTaskId?: string | null;
+  skill?: string | null;
+  files?: string[];
   /** Injected so callers stay testable; defaults to now. */
   now?: Date;
 }
@@ -198,6 +221,10 @@ export function renderTaskBlock(input: AssignInput): string {
   ];
   if (input.priority) lines.push(`- **Priority:** ${input.priority}`);
   if (input.due) lines.push(`- **Due:** ${input.due}`);
+  if (input.skill) lines.push(`- **Skill:** /${input.skill.replace(/^\/+/, "")}`);
+  if (input.files?.length) {
+    lines.push(`- **Files:** ${input.files.map((f) => `\`${f}\``).join(", ")}`);
+  }
   lines.push(`- **Assigned:** ${stamp(now)}`);
   if (input.sourceTaskId) lines.push(`- **Brawley task:** ${input.sourceTaskId}`);
   lines.push(`- **ID:** ${newId()}`);
@@ -221,4 +248,43 @@ export function renderTaskBlock(input: AssignInput): string {
 export function appendTask(md: string, input: AssignInput): string {
   const base = md.trim() ? md.replace(/\s*$/, "\n\n") : CLAUDE_FILE_TEMPLATE;
   return `${base}${renderTaskBlock(input)}`;
+}
+
+/* --------------------------------- mentions --------------------------------- */
+//
+// The assign composer lets the user type `/skill-name` to tag a skill and
+// `@`path`` to reference a file or folder, Slack/Linear-style. Files are
+// always inserted backtick-wrapped (by the picker) so paths with spaces stay
+// unambiguous; skills are plain slugs, so no wrapping is needed.
+
+const SKILL_MENTION_RE = /(^|\s)\/([a-zA-Z][\w:-]*)/;
+const FILE_MENTION_RE = /@`([^`]+)`/g;
+
+export interface ParsedMentions {
+  /** The composer text with mention tokens removed and whitespace collapsed. */
+  text: string;
+  skill: string | null;
+  files: string[];
+}
+
+/** Pull the first `/skill` tag and every `@`path`` reference out of free text. */
+export function parseMentions(raw: string): ParsedMentions {
+  const files: string[] = [];
+  let text = raw.replace(FILE_MENTION_RE, (_m, path: string) => {
+    files.push(path.trim());
+    return " ";
+  });
+
+  let skill: string | null = null;
+  text = text.replace(SKILL_MENTION_RE, (whole, _pre: string, name: string) => {
+    if (skill) return whole; // only the first `/mention` counts as the skill
+    skill = name;
+    return " ";
+  });
+
+  return {
+    text: text.replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").trim(),
+    skill,
+    files: [...new Set(files)],
+  };
 }

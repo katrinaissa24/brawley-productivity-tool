@@ -6,6 +6,7 @@ import { assignToClaude, spacesList, useSpaces } from "../stores/spaces";
 import { baseName, isMarkdown, isTextFile, relPath, spaceFs, type FsEntry } from "../lib/fs";
 import {
   CLAUDE_STATUSES,
+  parseMentions,
   STATUS_LABEL,
   STATUS_STYLE,
   type ClaudeStatus,
@@ -14,6 +15,7 @@ import {
 import { cn } from "../lib/util";
 import { ViewShell } from "../components/ViewShell";
 import { MarkdownEditor } from "../components/MarkdownEditor";
+import { MentionComposer } from "../components/MentionComposer";
 import {
   Button,
   EmptyState,
@@ -31,6 +33,7 @@ import {
   IconPlus,
   IconRefresh,
   IconRobot,
+  IconSparkle,
   IconTrash,
 } from "../components/icons";
 
@@ -255,6 +258,25 @@ function ClaudeTaskCard({ task }: { task: ClaudeTask }) {
             {task.due && <span>due {task.due}</span>}
             {task.assignedAt && <span>assigned {task.assignedAt}</span>}
           </div>
+          {(task.skill || task.files.length > 0) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {task.skill && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-accent/10 px-1.5 py-0.5 text-[11px] font-medium text-accent">
+                  <IconSparkle size={10} />/{task.skill}
+                </span>
+              )}
+              {task.files.map((f) => (
+                <span
+                  key={f}
+                  className="inline-flex items-center gap-1 rounded-md bg-panel px-1.5 py-0.5 text-[11px] text-ink3"
+                  title={f}
+                >
+                  {f.endsWith("/") ? <IconFolder size={10} /> : <IconFileText size={10} />}
+                  <span className="max-w-[160px] truncate">{f}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <button
           title="Remove from the hand-off file"
@@ -330,6 +352,13 @@ function ClaudePanel() {
   const loadClaude = useSpaces((s) => s.loadClaude);
   const [draft, setDraft] = useState("");
   const space = spacesList().find((s) => s.id === activeSpaceId);
+  const fileEntries = useSpaces((s) => (space ? s.fileIndex[space.path] : undefined)) ?? [];
+
+  const skillSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const t of claude?.tasks ?? []) if (t.skill) seen.add(t.skill);
+    return [...seen];
+  }, [claude]);
 
   if (loading && !claude) {
     return <p className="px-8 py-10 text-center text-[13px] text-ink3">Reading hand-off file…</p>;
@@ -339,10 +368,10 @@ function ClaudePanel() {
   const exists = claude.text.trim().length > 0;
 
   const add = async () => {
-    const title = draft.trim();
-    if (!title) return;
+    const { text, skill, files } = parseMentions(draft);
+    if (!text) return;
     setDraft("");
-    await assignToClaude({ title });
+    await assignToClaude({ title: text, skill, files });
     await loadClaude(true);
   };
 
@@ -377,20 +406,24 @@ function ClaudePanel() {
           )}
         </div>
 
-        <div className="mt-5 flex items-center gap-2">
-          <input
+        <div className="mt-5 flex items-start gap-2">
+          <MentionComposer
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void add();
-            }}
-            placeholder="Assign something to Claude…"
-            className="h-[34px] flex-1 rounded-lg border border-bord bg-card px-3 text-[13px] text-ink outline-none placeholder:text-ink3 focus:border-accent/60 focus:ring-2 focus:ring-accent/20"
+            onChange={setDraft}
+            onSubmit={() => void add()}
+            placeholder="Assign something to Claude… /skill to tag a skill, @ to mention a file"
+            skillSuggestions={skillSuggestions}
+            fileEntries={fileEntries}
+            className="flex-1"
           />
           <Button variant="primary" icon={<IconPlus size={13} />} onClick={() => void add()}>
             Assign
           </Button>
         </div>
+        <p className="mt-1.5 text-[11px] text-ink3">
+          Type <code className="rounded bg-panel px-1">/</code> to tag a skill for Claude to run, or{" "}
+          <code className="rounded bg-panel px-1">@</code> to reference a file or folder it should work in.
+        </p>
 
         {claude.tasks.length === 0 ? (
           <EmptyState

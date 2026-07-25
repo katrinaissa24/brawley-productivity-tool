@@ -18,10 +18,12 @@ import {
 import { parseRecurrence, serializeRecurrence } from "../lib/recurrence";
 import { assignToClaude, claudeSpace, readClaudeTasks, useSpaces } from "../stores/spaces";
 import {
+  parseMentions,
   STATUS_LABEL as CLAUDE_STATUS_LABEL,
   STATUS_STYLE as CLAUDE_STATUS_STYLE,
   type ClaudeTask,
 } from "../lib/claudeTasks";
+import { MentionComposer } from "./MentionComposer";
 import {
   IconArchive,
   IconCheck,
@@ -39,24 +41,40 @@ marked.setOptions({ gfm: true, breaks: true });
 
 /**
  * Hand a task to Claude: appends it to the space's markdown hand-off file, then
- * mirrors back whatever status Claude has written into that file since.
+ * mirrors back whatever status Claude has written into that file since. Opens
+ * a small composer first so a skill and files can be tagged onto the task.
  */
 function ClaudeField({ task }: { task: { id: string; title: string; notes: string | null; priority: string | null; dueDate: string | null } }) {
   const [handed, setHanded] = useState<ClaudeTask | null>(null);
+  const [allTasks, setAllTasks] = useState<ClaudeTask[]>([]);
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
   const go = useUI((s) => s.go);
   const toast = useUI((s) => s.toast);
   const space = claudeSpace();
+  const fileEntries = useSpaces((s) => (space ? s.fileIndex[space.path] : undefined)) ?? [];
 
   const sync = async () => {
     const found = await readClaudeTasks().catch(() => null);
+    setAllTasks(found?.tasks ?? []);
     setHanded(found?.tasks.find((t) => t.sourceTaskId === task.id) ?? null);
   };
 
   useEffect(() => {
     setHanded(null);
-    if (space) void sync();
+    setOpen(false);
+    if (space) {
+      void sync();
+      void useSpaces.getState().buildFileIndex(space.path);
+    }
   }, [task.id, space?.id]);
+
+  const skillSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const t of allTasks) if (t.skill) seen.add(t.skill);
+    return [...seen];
+  }, [allTasks]);
 
   const openInSpaces = () => {
     if (space) useSpaces.getState().setActiveSpace(space.id);
@@ -96,27 +114,61 @@ function ClaudeField({ task }: { task: { id: string; title: string; notes: strin
     );
   }
 
+  const assign = () => {
+    const { text, skill, files } = parseMentions(draft);
+    setBusy(true);
+    void assignToClaude({
+      title: task.title,
+      details: text || task.notes,
+      priority: task.priority,
+      due: task.dueDate,
+      sourceTaskId: task.id,
+      skill,
+      files,
+    })
+      .then(async (path) => {
+        if (path) toast("Handed off to Claude", "success");
+        setOpen(false);
+        await sync();
+      })
+      .catch((e) => toast(String(e), "error"))
+      .finally(() => setBusy(false));
+  };
+
+  if (open) {
+    return (
+      <div className="flex flex-col gap-2">
+        <MentionComposer
+          value={draft}
+          onChange={setDraft}
+          multiline
+          rows={3}
+          autoFocus
+          placeholder="What should Claude do? /skill to tag a skill, @ to mention a file or folder…"
+          skillSuggestions={skillSuggestions}
+          fileEntries={fileEntries}
+          inputClassName="text-[12.5px]"
+        />
+        <div className="flex items-center gap-2">
+          <Button size="xs" variant="primary" disabled={busy} onClick={assign}>
+            Assign
+          </Button>
+          <Button size="xs" variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Button
       size="xs"
       variant="secondary"
       icon={<IconRobot size={11} />}
-      disabled={busy}
       onClick={() => {
-        setBusy(true);
-        void assignToClaude({
-          title: task.title,
-          details: task.notes,
-          priority: task.priority,
-          due: task.dueDate,
-          sourceTaskId: task.id,
-        })
-          .then(async (path) => {
-            if (path) toast("Handed off to Claude", "success");
-            await sync();
-          })
-          .catch((e) => toast(String(e), "error"))
-          .finally(() => setBusy(false));
+        setDraft(task.notes ?? "");
+        setOpen(true);
       }}
     >
       Assign to Claude
