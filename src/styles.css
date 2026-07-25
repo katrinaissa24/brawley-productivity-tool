@@ -220,3 +220,84 @@ body.cal-creating * {
 .md-body blockquote {
   @apply border-l-2 border-bord2 pl-3 my-2 text-ink3;
 }
+
+/* Markdown document (Spaces preview) — roomier than .md-body, closer to a
+   real note-taking app than a compact side panel. */
+.md-doc {
+  @apply text-[14.5px] leading-[1.75] text-ink2 selectable;
+}
+.md-doc h1,
+.md-doc h2,
+.md-doc h3,
+.md-doc h4 {
+  @apply text-ink font-semibold tracking-[-0.01em];
+}
+.md-doc h1 {
+  @apply text-[26px] mt-6 mb-3 first:mt-0;
+}
+.md-doc h2 {
+  @apply text-[20px] mt-6 mb-2 first:mt-0;
+}
+.md-doc h3 {
+  @apply text-[16.5px] mt-5 mb-1.5 first:mt-0;
+}
+.md-doc h4 {
+  @apply text-[14.5px] mt-4 mb-1 first:mt-0;
+}
+.md-doc p {
+  @apply my-3;
+}
+.md-doc strong {
+  @apply text-ink font-semibold;
+}
+.md-doc em {
+  @apply italic;
+}
+.md-doc ul,
+.md-doc ol {
+  @apply pl-6 my-3 list-disc;
+}
+.md-doc ol {
+  @apply list-decimal;
+}
+.md-doc li {
+  @apply my-1;
+}
+.md-doc li input[type="checkbox"] {
+  @apply mr-1.5 align-middle accent-accent;
+}
+.md-doc li:has(> input[type="checkbox"]) {
+  @apply list-none -ml-5;
+}
+.md-doc code {
+  @apply text-[13px] px-1 py-0.5 rounded bg-panel border border-bord;
+}
+.md-doc pre {
+  @apply p-3 rounded-xl bg-panel border border-bord overflow-x-auto my-4;
+}
+.md-doc pre code {
+  @apply border-0 bg-transparent p-0 text-[13px];
+}
+.md-doc a {
+  color: rgb(var(--c-accent));
+  text-decoration: underline;
+}
+.md-doc blockquote {
+  @apply border-l-2 border-accent/40 pl-4 my-4 text-ink3 italic;
+}
+.md-doc hr {
+  @apply my-6 border-t border-bord;
+}
+.md-doc table {
+  @apply my-4 w-full border-collapse text-[13.5px];
+}
+.md-doc th,
+.md-doc td {
+  @apply border border-bord px-2.5 py-1.5 text-left;
+}
+.md-doc th {
+  @apply bg-panel font-semibold text-ink;
+}
+.md-doc img {
+  @apply my-3 max-w-full rounded-lg;
+}

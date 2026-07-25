@@ -14,7 +14,9 @@ import {
   IconCheckCircle,
   IconCircle,
   IconDownload,
+  IconHistory,
   IconInbox,
+  IconLayers,
   IconPlus,
   IconSettings,
   IconSparkle,
@@ -87,9 +89,10 @@ export function CommandPalette() {
       { id: "a:inbox", kind: "action", title: "Go to Inbox", icon: <IconInbox size={14} />, run: () => (close(), ui.go({ name: "inbox" })) },
       { id: "a:today", kind: "action", title: "Go to Today", icon: <IconSun size={14} />, run: () => (close(), ui.go({ name: "today" })) },
       { id: "a:sprint", kind: "action", title: "Go to Sprint", icon: <IconZap size={14} />, run: () => (close(), ui.go({ name: "sprint" })) },
-      { id: "a:review", kind: "action", title: "Go to Review", icon: <IconCheckCircle size={14} />, run: () => (close(), ui.go({ name: "review" })) },
+      { id: "a:reviews", kind: "action", title: "Go to Sprint reviews", icon: <IconHistory size={14} />, run: () => (close(), ui.go({ name: "reviews" })) },
       { id: "a:insights", kind: "action", title: "Go to Insights", icon: <IconChart size={14} />, run: () => (close(), ui.go({ name: "insights" })) },
       { id: "a:calendar", kind: "action", title: "Go to Calendar", icon: <IconCalendar size={14} />, run: () => (close(), ui.go({ name: "calendar" })) },
+      { id: "a:spaces", kind: "action", title: "Go to Spaces", icon: <IconLayers size={14} />, run: () => (close(), ui.go({ name: "spaces" })) },
       { id: "a:plan", kind: "action", title: "Plan my day", icon: <IconSparkle size={14} />, run: () => (close(), ui.go({ name: "today" }), ui.setPlanDayOpen(true)) },
       {
         id: "a:start-review",
@@ -98,7 +101,7 @@ export function CommandPalette() {
         icon: <IconCheckCircle size={14} />,
         run: () => {
           close();
-          ui.go({ name: "review" });
+          ui.go({ name: "sprint" });
           ui.setReviewOpen(true);
         },
       },

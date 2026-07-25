@@ -25,6 +25,7 @@ import { Button, EmptyState, Select } from "../components/ui/primitives";
 import {
   IconChevronRight,
   IconCheckCircle,
+  IconHistory,
   IconPlus,
   IconZap,
 } from "../components/icons";
@@ -33,6 +34,7 @@ export function SprintView() {
   const tasks = useData((s) => s.tasks);
   const projects = useData((s) => s.projects);
   const sprints = useData((s) => s.sprints);
+  const reviews = useData((s) => s.reviews);
   const commitToSprint = useData((s) => s.commitToSprint);
   const addTask = useData((s) => s.addTask);
   const settings = useSettings((s) => s.settings);
@@ -97,12 +99,17 @@ export function SprintView() {
           <Button
             variant={due ? "primary" : "secondary"}
             icon={<IconCheckCircle size={13} />}
-            onClick={() => {
-              go({ name: "review" });
-              setReviewOpen(true);
-            }}
+            onClick={() => setReviewOpen(true)}
           >
             {due ? "Start review" : "Review early"}
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<IconHistory size={13} />}
+            title="Every review you've saved"
+            onClick={() => go({ name: "reviews" })}
+          >
+            Past reviews{reviews.length > 0 && ` · ${reviews.length}`}
           </Button>
         </>
       }
@@ -114,14 +121,7 @@ export function SprintView() {
           <span className="text-[13px] text-ink">
             The sprint ended — run your weekly review to close it and plan the next one.
           </span>
-          <Button
-            size="xs"
-            variant="primary"
-            onClick={() => {
-              go({ name: "review" });
-              setReviewOpen(true);
-            }}
-          >
+          <Button size="xs" variant="primary" onClick={() => setReviewOpen(true)}>
             Start review
           </Button>
         </div>

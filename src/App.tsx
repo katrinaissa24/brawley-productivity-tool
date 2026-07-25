@@ -14,6 +14,7 @@ import type { Project, Task } from "./types";
 import { useData } from "./stores/data";
 import { useSettings } from "./stores/settings";
 import { useUI } from "./stores/ui";
+import { useSpaces } from "./stores/spaces";
 import { activeProjects } from "./stores/selectors";
 import { reorderIds, todayStr } from "./lib/util";
 import { moveTasksToProject } from "./lib/actions";
@@ -41,7 +42,9 @@ import { ProjectView } from "./views/ProjectView";
 import { SettingsView } from "./views/SettingsView";
 import { SprintView } from "./views/SprintView";
 import { GoalView } from "./views/GoalView";
-import { ReviewView } from "./views/ReviewView";
+import { ReviewsView } from "./views/ReviewsView";
+import { ReviewWizard } from "./views/ReviewWizard";
+import { SpacesView } from "./views/SpacesView";
 import { InsightsView } from "./views/InsightsView";
 import { ArchiveView } from "./views/ArchiveView";
 
@@ -55,6 +58,11 @@ function boot(): Promise<void> {
       useSettings.getState().init(settingsJson);
       useData.getState().ensureActiveSprint();
       useData.getState().rolloverOverdueTasks();
+
+      // Warm the first space so the sidebar can flag work Claude handed back
+      // before the user ever opens Spaces.
+      const firstSpace = useSettings.getState().settings.spaces?.[0];
+      if (firstSpace) useSpaces.getState().setActiveSpace(firstSpace.id);
 
       if (isTauri) {
         // Capture window inserts → reload; keep the user's global shortcut registered.
@@ -127,7 +135,7 @@ function useGlobalShortcuts(enabled: boolean) {
       if (matchCombo(e, sc.goInbox)) return e.preventDefault(), ui.go({ name: "inbox" });
       if (matchCombo(e, sc.goToday)) return e.preventDefault(), ui.go({ name: "today" });
       if (matchCombo(e, sc.goSprint)) return e.preventDefault(), ui.go({ name: "sprint" });
-      if (matchCombo(e, sc.goReview)) return e.preventDefault(), ui.go({ name: "review" });
+      if (matchCombo(e, sc.goReview)) return e.preventDefault(), ui.go({ name: "reviews" });
       if (matchCombo(e, sc.goInsights)) return e.preventDefault(), ui.go({ name: "insights" });
       if (matchCombo(e, sc.goFirstProject)) {
         e.preventDefault();
@@ -179,6 +187,10 @@ function useGlobalShortcuts(enabled: boolean) {
 
 function CurrentView() {
   const view = useUI((s) => s.view);
+  const reviewOpen = useUI((s) => s.reviewOpen);
+  // The review wizard takes over whatever page launched it (the Sprint page,
+  // usually) rather than living on a page of its own.
+  if (reviewOpen) return <ReviewWizard />;
   switch (view.name) {
     case "inbox":
       return <InboxView />;
@@ -186,12 +198,14 @@ function CurrentView() {
       return <TodayView />;
     case "sprint":
       return <SprintView />;
-    case "review":
-      return <ReviewView />;
+    case "reviews":
+      return <ReviewsView />;
     case "insights":
       return <InsightsView />;
     case "calendar":
       return <CalendarView />;
+    case "spaces":
+      return <SpacesView />;
     case "project":
       return <ProjectView key={view.projectId} projectId={view.projectId} />;
     case "goal":

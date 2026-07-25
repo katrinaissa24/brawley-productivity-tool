@@ -5,6 +5,7 @@ import type { Project, View } from "../types";
 import { useData } from "../stores/data";
 import { useSettings } from "../stores/settings";
 import { useUI } from "../stores/ui";
+import { useSpaces } from "../stores/spaces";
 import {
   activeProjects,
   activeSprint,
@@ -21,9 +22,9 @@ import { cn } from "../lib/util";
 import {
   IconCalendar,
   IconChart,
-  IconCheckCircle,
   IconChevronRight,
   IconInbox,
+  IconLayers,
   IconPlus,
   IconSearch,
   IconSettings,
@@ -238,6 +239,10 @@ export function Sidebar() {
   const settings = useSettings((s) => s.settings);
   const setViewPref = useSettings((s) => s.setViewPref);
 
+  const claudeWaiting = useSpaces(
+    (s) => s.claude?.tasks.filter((t) => t.status === "waiting_review").length ?? 0,
+  );
+
   const inboxCount = inboxTasks(tasks).length;
   const todayCount = todayOpenCount(tasks, projects);
   const projs = activeProjects(projects);
@@ -320,19 +325,14 @@ export function Sidebar() {
               shortcut: "⌘2",
             },
             {
+              // Reviews live on the Sprint page now, so its dot carries the
+              // "sprint ended, review it" signal.
               icon: <IconZap size={15} />,
               label: "Sprint",
-              active: is("sprint"),
+              dot: due,
+              active: is("sprint") || is("reviews"),
               onClick: () => go({ name: "sprint" }),
               shortcut: "⌘3",
-            },
-            {
-              icon: <IconCheckCircle size={15} />,
-              label: "Review",
-              dot: due,
-              active: is("review"),
-              onClick: () => go({ name: "review" }),
-              shortcut: "⌘4",
             },
             {
               icon: <IconChart size={15} />,
@@ -346,6 +346,15 @@ export function Sidebar() {
               label: "Calendar",
               active: is("calendar"),
               onClick: () => go({ name: "calendar" }),
+            },
+            {
+              icon: <IconLayers size={15} />,
+              label: "Spaces",
+              // Tasks Claude has finished and handed back are the one thing
+              // worth interrupting for.
+              badge: claudeWaiting,
+              active: is("spaces"),
+              onClick: () => go({ name: "spaces" }),
             },
           ].map((item) => (
             <div key={item.label} className="flex items-center">

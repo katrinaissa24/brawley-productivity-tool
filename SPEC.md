@@ -130,12 +130,13 @@ Single-row key/value JSON store. See §11 for every key.
 1. 🔍 Search (⌘K command palette)
 2. **Inbox** (badge = unsorted count)
 3. **Today**
-4. **Sprint** (current sprint board)
-5. **Review** (badge/dot when a review is due)
-6. **Insights** (charts)
-7. Divider
-8. **Projects** list (user-ordered, colored dot per project, drag to reorder) + "New project" button
-9. Bottom: Settings gear
+4. **Sprint** (current sprint board; dot when a review is due — reviews live on this page, see §6.7)
+5. **Insights** (charts)
+6. **Calendar** (§12)
+7. **Spaces** (§13; badge = tasks Claude handed back)
+8. Divider
+9. **Projects** list (user-ordered, colored dot per project, drag to reorder) + "New project" button
+10. Bottom: Settings gear
 
 **Main area** renders the selected view. Persistent **quick-capture bar** behavior described in §6.1.
 
@@ -203,7 +204,12 @@ The core promise: getting a thought out of your head takes **under 3 seconds**.
 ### 6.7 Weekly Review (the check-in ritual)
 A guided, multi-step flow — directly tied to goals, tasks, and sprint progress. Its job: make sure the user is **actively on track** for their goals.
 
-**Trigger:** sprint end date reached (banner + native notification + sidebar dot). Can also be run manually anytime.
+**Trigger:** sprint end date reached (banner + native notification + a dot on the Sprint nav item). Can also be run manually anytime.
+
+**Where it lives:** the Sprint page, not a nav item of its own. Its header has
+two buttons — **Review early** / **Start review** (opens the wizard as a
+full-screen overlay over whatever page launched it) and **Past reviews**
+(the read-only history page, §6.7 below). Navigating away closes the wizard.
 
 **Steps (wizard UI, one screen per step, progress dots at top):**
 1. **Sprint recap:** doughnut of completed vs committed, total tasks done, estimated time completed. One-line auto summary ("You completed 8 of 12 committed tasks").
@@ -213,7 +219,8 @@ A guided, multi-step flow — directly tied to goals, tasks, and sprint progress
 5. **Plan next sprint:** pick tasks for the new sprint (backlog picker, prioritized suggestions: at-risk goal tasks first, then P1s, then near-due). Shows running total of committed estimate vs. a soft capacity hint (Settings, default 20h).
 6. **Done:** closes old sprint, creates new one, saves a `reviews` row with a goals snapshot. Calm completion screen.
 
-Past reviews browsable from the Review tab (read-only history).
+Past reviews browsable from the **Past reviews** button on the Sprint page
+(read-only history; each entry expands to its goal check-in and reflections).
 
 ### 6.8 Insights (charts)
 Clean, minimal Recharts visuals. Time-range selector: This sprint / Last sprint / 30 days / All time.
@@ -370,3 +377,77 @@ remembers the first planned day. Today shows these under a **"Do later"**
 section (amber, "from Yesterday" chip). Any deliberate reschedule — drag on
 the calendar, a date edit, or a drop into a Today section — clears the flag.
 In-progress tasks skip "Do later" and stay in the main flow.
+
+---
+
+## 13. Spaces (added post-v1)
+
+A place for **markdown files that live on your disk** — the bridge between
+Brawley and Claude running on the same machine. Sidebar nav: "Spaces",
+directly under Calendar.
+
+**Connecting.** *Connect folder* opens a native directory picker; the chosen
+folder becomes a space (`settings.spaces`, persisted in the settings JSON —
+no new table). Multiple spaces are allowed; a `Select` in the header switches
+between them. Disconnecting only forgets the folder — nothing on disk is
+touched. In the browser dev preview there is no disk, so the empty state
+offers a **demo space** backed by `localStorage` instead; everything else in
+the UI behaves identically.
+
+**Layout.** Left: a Finder-like tree (folders lazily listed on expand,
+right-click for new file / new folder / rename / reveal / delete, plus a
+pinned "Claude tasks" row). Right: the open document, or the Claude panel.
+
+**Editor.** Markdown source with a formatting toolbar (H1–H3, bold, italic,
+inline code, link, bullet list, checklist, quote), Edit / Split / Preview
+modes, and shortcuts: `⌘B`, `⌘I`, `⌘S` (save now), `⌘E` (toggle preview),
+Tab to indent, Enter to continue a list. Edits autosave to the real file
+~700ms after typing stops; the header shows Saved / Saving / Unsaved.
+Rendering is `marked` + the `.md-doc` stylesheet (GFM tables and checkboxes
+included).
+
+**Filesystem access** is a thin adapter (`src/lib/fs.ts`) over Rust commands
+(`fs_list_dir`, `fs_read_text`, `fs_write_text`, `fs_create_dir`, `fs_rename`,
+`fs_delete`, `fs_exists`, `fs_reveal`). Dotfiles are skipped. Because Claude
+edits the same files, the tree and the open document re-read from disk on
+window focus and on *Refresh* (a dirty buffer is never clobbered).
+
+### 13.1 The Claude hand-off file
+
+One markdown file per space (default `Claude Tasks.md`; any `.md` file can be
+promoted via its context menu) is the shared to-do list between the user and a
+scheduled Claude session. **The markdown is the state** — there is no mirror
+in SQLite.
+
+Format — one `##` block per task:
+
+```markdown
+## Write the launch checklist
+
+- **Status:** waiting for review
+- **Priority:** P1
+- **Assigned:** 2026-07-25 09:52
+- **Brawley task:** <task id>
+- **ID:** 2kqqoc
+
+### Details
+…
+
+### Report
+_Claude: write what you did here._
+
+---
+```
+
+Statuses: `assigned` · `in progress` · `waiting for review` · `done` ·
+`blocked`. Parsing is deliberately tolerant (bold optional, aliases like
+"doing" / "completed" normalised) so a human or Claude editing the file by
+hand can't break it.
+
+**Assigning.** From the Claude panel's quick-add, or from any task's detail
+panel ("Assign to Claude"), which appends a block carrying the task's notes,
+priority and due date, plus its Brawley id. The detail panel then mirrors the
+status Claude has written back into the file. Flipping a status in the app
+re-reads the file, rewrites just that block, and writes it back immediately —
+so a Claude session that ran a second ago never gets clobbered. The Spaces nav
+item badges the number of tasks in `waiting for review`.

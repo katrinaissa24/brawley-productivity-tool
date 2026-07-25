@@ -95,7 +95,9 @@ let toastSeq = 1;
 export const useUI = create<UIState>((set, get) => ({
   view: { name: "today" },
   go(view) {
-    set({ view, selectedIds: [], paletteOpen: false });
+    // Navigating away closes the review wizard — it overlays whatever page
+    // launched it, so leaving that page has to dismiss it.
+    set({ view, selectedIds: [], paletteOpen: false, reviewOpen: false });
   },
 
   detailTaskId: null,

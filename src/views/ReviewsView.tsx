@@ -4,12 +4,18 @@ import { marked } from "marked";
 import type { Review, ReviewSnapshot } from "../types";
 import { useData } from "../stores/data";
 import { useUI } from "../stores/ui";
-import { activeSprint, reviewDue, sprintDaysLeft, sprintLabel } from "../stores/selectors";
+import { activeSprint, reviewDue, sprintLabel } from "../stores/selectors";
 import { cn, plural } from "../lib/util";
 import { ViewShell } from "../components/ViewShell";
-import { ReviewWizard } from "./ReviewWizard";
 import { Button, EmptyState, SectionLabel } from "../components/ui/primitives";
-import { IconCheckCircle, IconChevronDown, IconChevronRight, IconSparkle, IconTrash } from "../components/icons";
+import {
+  IconCheckCircle,
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconSparkle,
+  IconTrash,
+} from "../components/icons";
 
 const MARK_STYLE: Record<string, string> = {
   on_track: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
@@ -108,66 +114,62 @@ function PastReview({ review }: { review: Review }) {
   );
 }
 
-export function ReviewView() {
-  const reviewOpen = useUI((s) => s.reviewOpen);
+/** Every saved sprint review — reached from the Sprint page. */
+export function ReviewsView() {
   const setReviewOpen = useUI((s) => s.setReviewOpen);
+  const go = useUI((s) => s.go);
   const sprints = useData((s) => s.sprints);
   const reviews = useData((s) => s.reviews);
 
   const sprint = activeSprint(sprints);
   const due = reviewDue(sprint);
 
-  if (reviewOpen) return <ReviewWizard />;
-
   return (
     <ViewShell
-      title="Review"
-      meta="The weekly ritual that keeps goals honest"
+      title="Sprint reviews"
+      meta={
+        <button
+          onClick={() => go({ name: "sprint" })}
+          className="inline-flex items-center gap-1 text-ink3 transition-colors hover:text-ink2"
+        >
+          <IconChevronLeft size={12} />
+          Back to Sprint · {sprint ? sprintLabel(sprint) : "—"}
+        </button>
+      }
+      actions={
+        <Button
+          variant={due ? "primary" : "secondary"}
+          icon={<IconCheckCircle size={13} />}
+          onClick={() => {
+            go({ name: "sprint" });
+            setReviewOpen(true);
+          }}
+        >
+          {due ? "Start review" : "Review early"}
+        </Button>
+      }
     >
       <div className="max-w-[680px]">
-        <div
-          className={cn(
-            "flex items-center gap-5 rounded-2xl border px-6 py-5 shadow-card",
-            due ? "border-accent/40 bg-accent/5" : "border-bord bg-card",
-          )}
-        >
-          <span className={cn("rounded-xl p-3", due ? "bg-accent/15 text-accent" : "bg-panel text-ink3")}>
-            <IconSparkle size={22} />
-          </span>
-          <div className="flex-1">
-            <p className="text-[15px] font-semibold text-ink">
-              {due
-                ? "Sprint ended — time for your review"
-                : sprint
-                  ? `${sprintDaysLeft(sprint)} ${sprintDaysLeft(sprint) === 1 ? "day" : "days"} left in this sprint`
-                  : "No active sprint"}
-            </p>
-            <p className="mt-0.5 text-[13px] text-ink2">
-              {due
-                ? "Recap the week, triage stale tasks, check every goal, plan the next sprint."
-                : `Sprint · ${sprint ? sprintLabel(sprint) : "—"} — you can always review early.`}
-            </p>
-          </div>
-          <Button variant={due ? "primary" : "secondary"} icon={<IconCheckCircle size={14} />} onClick={() => setReviewOpen(true)}>
-            {due ? "Start review" : "Review early"}
-          </Button>
-        </div>
-
-        <div className="mt-8">
-          <SectionLabel className="mb-2.5">Past reviews · {reviews.length}</SectionLabel>
-          {reviews.length === 0 ? (
-            <EmptyState
-              title="No reviews yet"
-              hint="Your first weekly review will be saved here — recap, goal check-ins, and reflections, browsable forever."
-            />
-          ) : (
+        {reviews.length === 0 ? (
+          <EmptyState
+            icon={<IconSparkle size={26} />}
+            title="No reviews yet"
+            hint={
+              due
+                ? "This sprint has ended — run the review and it'll be saved here for good."
+                : "Every review you run gets saved here: recap, goal check-ins, and reflections, browsable forever."
+            }
+          />
+        ) : (
+          <>
+            <SectionLabel className="mb-2.5">{plural(reviews.length, "saved review")}</SectionLabel>
             <div className="flex flex-col gap-2">
               {reviews.map((r) => (
                 <PastReview key={r.id} review={r} />
               ))}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </ViewShell>
   );
