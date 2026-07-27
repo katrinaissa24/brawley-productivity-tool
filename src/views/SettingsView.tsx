@@ -8,6 +8,11 @@ import { ACCENT_COLORS, cn, DOW_LABELS } from "../lib/util";
 import { comboFromEvent, comboLabel, comboToAccelerator } from "../lib/shortcuts";
 import { exportBackup, importBackup, revealDb, syncGlobalShortcut } from "../lib/native";
 import { appVersion, checkForUpdate } from "../lib/updater";
+import {
+  getNotificationPermissionState,
+  requestNotificationPermission,
+  type NotifPermission,
+} from "../lib/notifications";
 import { ViewShell } from "../components/ViewShell";
 import { Button, SectionLabel, Segmented, Select, TextInput, Toggle } from "../components/ui/primitives";
 import {
@@ -179,6 +184,12 @@ export function SettingsView() {
   const [checking, setChecking] = useState(false);
   useEffect(() => {
     void appVersion().then(setVersion);
+  }, []);
+
+  const [notifPermission, setNotifPermission] = useState<NotifPermission>("unavailable");
+  const [requestingNotif, setRequestingNotif] = useState(false);
+  useEffect(() => {
+    void getNotificationPermissionState().then(setNotifPermission);
   }, []);
 
   const section = view.name === "settings" ? (view.section ?? "general") : "general";
@@ -503,6 +514,40 @@ export function SettingsView() {
 
           {section === "notifications" && (
             <Card title="Native notifications">
+              <Row
+                label="System permission"
+                desc={
+                  !isTauri
+                    ? "Only available in the desktop app."
+                    : notifPermission === "granted"
+                      ? "Brawley is allowed to show OS notifications. You can revoke this any time from your system's notification settings."
+                      : notifPermission === "denied"
+                        ? "Access was denied or hasn't been granted yet. Request it again below, or enable it in your system's notification settings."
+                        : "Checking…"
+                }
+              >
+                <Button
+                  icon={<IconBell size={13} />}
+                  disabled={!isTauri || requestingNotif}
+                  onClick={() => {
+                    setRequestingNotif(true);
+                    void requestNotificationPermission()
+                      .then((result) => {
+                        setNotifPermission(result);
+                        if (result === "denied") {
+                          toast("Notifications denied — enable them in your system settings.");
+                        }
+                      })
+                      .finally(() => setRequestingNotif(false));
+                  }}
+                >
+                  {requestingNotif
+                    ? "Requesting…"
+                    : notifPermission === "granted"
+                      ? "Re-check access"
+                      : "Grant access"}
+                </Button>
+              </Row>
               <Row label="Enable notifications" desc="Master switch for everything below.">
                 <Toggle checked={settings.notifMaster} onChange={(v) => patch({ notifMaster: v })} />
               </Row>

@@ -170,6 +170,8 @@ export interface Settings {
   notifDue: boolean;
   notifReview: boolean;
   notifGoal: boolean;
+  /** Whether we've already asked the OS for notification permission once. */
+  notifPermissionAsked: boolean;
   shortcuts: ShortcutMap;
   onboardingDone: boolean;
   lastPlanDate: string | null;
@@ -219,6 +221,7 @@ export const DEFAULT_SETTINGS: Settings = {
   notifDue: true,
   notifReview: true,
   notifGoal: true,
+  notifPermissionAsked: false,
   shortcuts: DEFAULT_SHORTCUTS,
   onboardingDone: false,
   lastPlanDate: null,
