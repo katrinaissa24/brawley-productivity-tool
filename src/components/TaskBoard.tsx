@@ -229,7 +229,7 @@ export function TaskBoard({
             sprintId={col.sprintId}
             unassign={col.unassign}
             listIds={ids}
-            className="flex h-full w-[272px] shrink-0 flex-col"
+            className="flex h-full min-w-[248px] max-w-[420px] flex-1 flex-col"
           >
             {(isOver) => (
               // The box fills the whole lane so a task can be dropped anywhere

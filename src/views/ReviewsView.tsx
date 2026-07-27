@@ -149,7 +149,7 @@ export function ReviewsView() {
         </Button>
       }
     >
-      <div className="max-w-[680px]">
+      <div className="mx-auto w-full max-w-[780px]">
         {reviews.length === 0 ? (
           <EmptyState
             icon={<IconSparkle size={26} />}

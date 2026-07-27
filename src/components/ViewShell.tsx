@@ -20,15 +20,15 @@ export function ViewShell({
     <div className="flex h-full min-w-0 flex-1 flex-col">
       <header
         data-tauri-drag-region
-        className="flex shrink-0 items-end justify-between gap-4 px-8 pb-3.5 pt-9"
+        className="flex shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2 px-8 pb-3.5 pt-9"
       >
         <div className="min-w-0">
-          <h1 className="truncate text-[19px] font-semibold tracking-[-0.01em] text-ink">
+          <h1 className="whitespace-nowrap text-[19px] font-semibold tracking-[-0.01em] text-ink">
             {title}
           </h1>
           {meta && <div className="mt-0.5 text-[12.5px] text-ink3">{meta}</div>}
         </div>
-        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
       </header>
       <div
         className={cn(

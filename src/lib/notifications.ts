@@ -31,14 +31,50 @@ function markFired(key: string) {
 
 const hasFired = (key: string) => key in firedMap();
 
-async function notify(title: string, body: string) {
-  if (!isTauri) return;
+export type NotifPermission = "granted" | "denied" | "unavailable";
+
+/**
+ * Explicitly ask the OS for notification permission (or check the current
+ * grant). Called once automatically on first use, and afterwards only when
+ * the user opts back in from Settings — never silently on every launch.
+ */
+export async function requestNotificationPermission(): Promise<NotifPermission> {
+  if (!isTauri) return "unavailable";
   try {
-    const { isPermissionGranted, requestPermission, sendNotification } = await import(
+    const { isPermissionGranted, requestPermission } = await import(
       "@tauri-apps/plugin-notification"
     );
     let granted = await isPermissionGranted();
     if (!granted) granted = (await requestPermission()) === "granted";
+    useSettings.getState().patch({ notifPermissionAsked: true });
+    return granted ? "granted" : "denied";
+  } catch (e) {
+    console.warn("notification permission request failed", e);
+    return "unavailable";
+  }
+}
+
+/** Passive check of the current OS grant — never shows a prompt. */
+export async function getNotificationPermissionState(): Promise<NotifPermission> {
+  if (!isTauri) return "unavailable";
+  try {
+    const { isPermissionGranted } = await import("@tauri-apps/plugin-notification");
+    return (await isPermissionGranted()) ? "granted" : "denied";
+  } catch (e) {
+    console.warn("notification permission check failed", e);
+    return "unavailable";
+  }
+}
+
+async function notify(title: string, body: string) {
+  if (!isTauri) return;
+  try {
+    const { isPermissionGranted, sendNotification } = await import(
+      "@tauri-apps/plugin-notification"
+    );
+    const asked = useSettings.getState().settings.notifPermissionAsked;
+    let granted = await isPermissionGranted();
+    if (!granted && !asked) granted = (await requestNotificationPermission()) === "granted";
     if (granted) sendNotification({ title, body });
   } catch (e) {
     console.warn("notification failed", e);

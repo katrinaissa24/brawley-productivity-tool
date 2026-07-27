@@ -81,7 +81,7 @@ export function TodayView() {
         </Button>
       }
     >
-      <div className="max-w-[660px]">
+      <div className="mx-auto w-full max-w-[780px]">
         {open.length === 0 && doLater.length === 0 && done.length === 0 && (
           <EmptyState
             icon={<IconSun size={30} />}

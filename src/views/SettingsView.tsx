@@ -8,6 +8,11 @@ import { ACCENT_COLORS, cn, DOW_LABELS } from "../lib/util";
 import { comboFromEvent, comboLabel, comboToAccelerator } from "../lib/shortcuts";
 import { exportBackup, importBackup, revealDb, syncGlobalShortcut } from "../lib/native";
 import { appVersion, checkForUpdate } from "../lib/updater";
+import {
+  getNotificationPermissionState,
+  requestNotificationPermission,
+  type NotifPermission,
+} from "../lib/notifications";
 import { ViewShell } from "../components/ViewShell";
 import { Button, SectionLabel, Segmented, Select, TextInput, Toggle } from "../components/ui/primitives";
 import {
@@ -181,12 +186,18 @@ export function SettingsView() {
     void appVersion().then(setVersion);
   }, []);
 
+  const [notifPermission, setNotifPermission] = useState<NotifPermission>("unavailable");
+  const [requestingNotif, setRequestingNotif] = useState(false);
+  useEffect(() => {
+    void getNotificationPermissionState().then(setNotifPermission);
+  }, []);
+
   const section = view.name === "settings" ? (view.section ?? "general") : "general";
   const setSection = (id: string) => go({ name: "settings", section: id });
 
   return (
     <ViewShell title="Settings" meta="Make Brawley yours — every default is changeable">
-      <div className="flex gap-8">
+      <div className="mx-auto flex w-full max-w-[880px] gap-8">
         <nav className="w-[170px] shrink-0">
           <div className="flex flex-col gap-0.5 sticky top-0">
             {SECTIONS.map((s) => (
@@ -207,7 +218,7 @@ export function SettingsView() {
           </div>
         </nav>
 
-        <div className="max-w-[560px] flex-1 min-w-0">
+        <div className="max-w-[640px] flex-1 min-w-0">
           {section === "general" && (
             <>
               <Card title="Appearance">
@@ -503,6 +514,40 @@ export function SettingsView() {
 
           {section === "notifications" && (
             <Card title="Native notifications">
+              <Row
+                label="System permission"
+                desc={
+                  !isTauri
+                    ? "Only available in the desktop app."
+                    : notifPermission === "granted"
+                      ? "Brawley is allowed to show OS notifications. You can revoke this any time from your system's notification settings."
+                      : notifPermission === "denied"
+                        ? "Access was denied or hasn't been granted yet. Request it again below, or enable it in your system's notification settings."
+                        : "Checking…"
+                }
+              >
+                <Button
+                  icon={<IconBell size={13} />}
+                  disabled={!isTauri || requestingNotif}
+                  onClick={() => {
+                    setRequestingNotif(true);
+                    void requestNotificationPermission()
+                      .then((result) => {
+                        setNotifPermission(result);
+                        if (result === "denied") {
+                          toast("Notifications denied — enable them in your system settings.");
+                        }
+                      })
+                      .finally(() => setRequestingNotif(false));
+                  }}
+                >
+                  {requestingNotif
+                    ? "Requesting…"
+                    : notifPermission === "granted"
+                      ? "Re-check access"
+                      : "Grant access"}
+                </Button>
+              </Row>
               <Row label="Enable notifications" desc="Master switch for everything below.">
                 <Toggle checked={settings.notifMaster} onChange={(v) => patch({ notifMaster: v })} />
               </Row>

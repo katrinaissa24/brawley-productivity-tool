@@ -79,7 +79,7 @@ export function ArchiveView() {
         />
       }
     >
-      <div className="max-w-[680px]">
+      <div className="mx-auto w-full max-w-[780px]">
         <div className="flex items-center gap-2">
           <TextInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="max-w-[280px]" />
           {tab === "tasks" && (
