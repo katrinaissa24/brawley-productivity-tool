@@ -350,7 +350,7 @@ function ProjectList({
   }
 
   return (
-    <div className="max-w-[760px]">
+    <div className="mx-auto w-full max-w-[860px]">
       <div className="mb-3 flex items-center justify-end gap-1.5 text-[12px] text-ink3">
         Sort
         <Select

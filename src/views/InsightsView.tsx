@@ -165,7 +165,7 @@ export function InsightsView() {
           hint="Complete a few tasks and the charts light up — everything here is powered by real completions, not vibes."
         />
       ) : (
-        <div className="grid max-w-[880px] grid-cols-2 gap-3.5">
+        <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-3.5 lg:grid-cols-2">
           {/* 1 — sprint doughnut */}
           <ChartCard title="Sprint progress">
             {sprint && sprintTasksAll.length > 0 ? (
@@ -231,7 +231,7 @@ export function InsightsView() {
           </ChartCard>
 
           {/* 5 — completion trend, stacked by project */}
-          <ChartCard title="Completion trend" className="col-span-2">
+          <ChartCard title="Completion trend" className="lg:col-span-2">
             <div ref={trendRef} className="relative h-[150px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart

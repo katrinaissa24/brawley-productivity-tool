@@ -19,6 +19,7 @@ import {
   unscheduledTasks,
 } from "../stores/selectors";
 import { cn } from "../lib/util";
+import { DroppableZone } from "./dnd";
 import {
   IconCalendar,
   IconChart,
@@ -359,7 +360,23 @@ export function Sidebar() {
           ].map((item) => (
             <div key={item.label} className="flex items-center">
               <div className={cn("min-w-0 flex-1", calMode && "pr-3")}>
-                <NavItem {...item} />
+                {item.label === "Today" ? (
+                  // Dropping a task here plans it for today (not started).
+                  <DroppableZone id="nav:today" data={{ type: "today-nav" }}>
+                    {(isOver) => (
+                      <div
+                        className={cn(
+                          "rounded-lg transition-all duration-150",
+                          isOver && "ring-2 ring-accent/60 bg-accent/10",
+                        )}
+                      >
+                        <NavItem {...item} />
+                      </div>
+                    )}
+                  </DroppableZone>
+                ) : (
+                  <NavItem {...item} />
+                )}
               </div>
               {gutter}
             </div>

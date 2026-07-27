@@ -47,7 +47,7 @@ export function InboxView() {
           : "Capture first, organize later"
       }
     >
-      <div className="max-w-[660px]">
+      <div className="mx-auto w-full max-w-[780px]">
         <CaptureBar />
         {notes.length === 0 ? (
           <EmptyState

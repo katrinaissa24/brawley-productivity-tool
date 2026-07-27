@@ -26,7 +26,9 @@ export type DropData =
       resetRollover?: boolean;
       listIds: string[];
     }
-  | { type: "backlog" };
+  | { type: "backlog" }
+  /** Sidebar "Today" nav item: schedule for today, not started. */
+  | { type: "today-nav" };
 
 /** Sortable wrapper for task cards inside ordered lists / board columns. */
 export function SortableTask({

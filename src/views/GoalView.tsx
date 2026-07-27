@@ -197,7 +197,7 @@ export function GoalView({ goalId }: { goalId: string }) {
         </>
       }
     >
-      <div className="max-w-[760px]">
+      <div className="mx-auto w-full max-w-[860px]">
         {overdue && (
           <div className="anim-fade mb-4 flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5">
             <span className="text-[13px] text-ink">

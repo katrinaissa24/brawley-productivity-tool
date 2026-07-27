@@ -197,7 +197,7 @@ export function SettingsView() {
 
   return (
     <ViewShell title="Settings" meta="Make Brawley yours — every default is changeable">
-      <div className="flex gap-8">
+      <div className="mx-auto flex w-full max-w-[880px] gap-8">
         <nav className="w-[170px] shrink-0">
           <div className="flex flex-col gap-0.5 sticky top-0">
             {SECTIONS.map((s) => (
@@ -218,7 +218,7 @@ export function SettingsView() {
           </div>
         </nav>
 
-        <div className="max-w-[560px] flex-1 min-w-0">
+        <div className="max-w-[640px] flex-1 min-w-0">
           {section === "general" && (
             <>
               <Card title="Appearance">
