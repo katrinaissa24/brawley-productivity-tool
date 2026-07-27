@@ -1,6 +1,8 @@
+import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useState, type ReactNode } from "react";
+import type { DropData } from "./dnd";
 import type { Project, View } from "../types";
 import { useData } from "../stores/data";
 import { useSettings } from "../stores/settings";
@@ -19,7 +21,6 @@ import {
   unscheduledTasks,
 } from "../stores/selectors";
 import { cn } from "../lib/util";
-import { DroppableZone } from "./dnd";
 import {
   IconCalendar,
   IconChart,
@@ -92,6 +93,7 @@ function NavItem({
   badge,
   dot,
   shortcut,
+  highlight,
 }: {
   icon: ReactNode;
   label: string;
@@ -100,6 +102,8 @@ function NavItem({
   badge?: number;
   dot?: boolean;
   shortcut?: string;
+  /** A dragged task is hovering — light up as a drop target. */
+  highlight?: boolean;
 }) {
   return (
     <button
@@ -110,6 +114,7 @@ function NavItem({
         active
           ? "bg-accent/10 text-accent font-medium"
           : "text-ink2 hover:bg-ink/5 hover:text-ink",
+        highlight && "ring-2 ring-accent/60 bg-accent/10",
       )}
     >
       <span className={cn("shrink-0", active ? "text-accent" : "text-ink3 group-hover:text-ink2")}>
@@ -123,6 +128,25 @@ function NavItem({
       )}
       {dot && <span className="h-2 w-2 rounded-full bg-accent" />}
     </button>
+  );
+}
+
+/** Wraps the Today nav item so dragged tasks can be dropped on it (plan for today). */
+function TodayDropRow({
+  calMode,
+  children,
+}: {
+  calMode: boolean;
+  children: (taskOver: boolean) => ReactNode;
+}) {
+  const { setNodeRef, isOver, active } = useDroppable({
+    id: "nav:today",
+    data: { type: "nav-today" } satisfies DropData,
+  });
+  return (
+    <div ref={setNodeRef} className={cn("min-w-0 flex-1", calMode && "pr-3")}>
+      {children(isOver && active?.data.current?.type === "task")}
+    </div>
   );
 }
 
@@ -316,15 +340,23 @@ export function Sidebar() {
             </div>
             {calMode && <RailArrow rail={railFor(CAL_INBOX_KEY, INBOX_COLOR)} />}
           </div>
+          <div className="flex items-center">
+            <TodayDropRow calMode={calMode}>
+              {(taskOver) => (
+                <NavItem
+                  icon={<IconSun size={15} />}
+                  label="Today"
+                  badge={todayCount}
+                  active={is("today")}
+                  onClick={() => go({ name: "today" })}
+                  shortcut="⌘2"
+                  highlight={taskOver}
+                />
+              )}
+            </TodayDropRow>
+            {gutter}
+          </div>
           {[
-            {
-              icon: <IconSun size={15} />,
-              label: "Today",
-              badge: todayCount,
-              active: is("today"),
-              onClick: () => go({ name: "today" }),
-              shortcut: "⌘2",
-            },
             {
               // Reviews live on the Sprint page now, so its dot carries the
               // "sprint ended, review it" signal.
@@ -360,23 +392,7 @@ export function Sidebar() {
           ].map((item) => (
             <div key={item.label} className="flex items-center">
               <div className={cn("min-w-0 flex-1", calMode && "pr-3")}>
-                {item.label === "Today" ? (
-                  // Dropping a task here plans it for today (not started).
-                  <DroppableZone id="nav:today" data={{ type: "today-nav" }}>
-                    {(isOver) => (
-                      <div
-                        className={cn(
-                          "rounded-lg transition-all duration-150",
-                          isOver && "ring-2 ring-accent/60 bg-accent/10",
-                        )}
-                      >
-                        <NavItem {...item} />
-                      </div>
-                    )}
-                  </DroppableZone>
-                ) : (
-                  <NavItem {...item} />
-                )}
+                <NavItem {...item} />
               </div>
               {gutter}
             </div>

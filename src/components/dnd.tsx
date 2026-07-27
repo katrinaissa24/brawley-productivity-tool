@@ -27,8 +27,8 @@ export type DropData =
       listIds: string[];
     }
   | { type: "backlog" }
-  /** Sidebar "Today" nav item: schedule for today, not started. */
-  | { type: "today-nav" };
+  /** Sidebar "Today" item — plans dropped tasks for today, back to not-started. */
+  | { type: "nav-today" };
 
 /** Sortable wrapper for task cards inside ordered lists / board columns. */
 export function SortableTask({
