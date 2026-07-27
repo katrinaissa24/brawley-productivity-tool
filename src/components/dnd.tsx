@@ -26,7 +26,9 @@ export type DropData =
       resetRollover?: boolean;
       listIds: string[];
     }
-  | { type: "backlog" };
+  | { type: "backlog" }
+  /** Sidebar "Today" item — plans dropped tasks for today, back to not-started. */
+  | { type: "nav-today" };
 
 /** Sortable wrapper for task cards inside ordered lists / board columns. */
 export function SortableTask({
