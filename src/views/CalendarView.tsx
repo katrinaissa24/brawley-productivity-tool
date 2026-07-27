@@ -42,7 +42,7 @@ import {
   todayStr,
 } from "../lib/util";
 import { taskMenuItems } from "../components/TaskCard";
-import { Button, FloatingMenu, Segmented } from "../components/ui/primitives";
+import { Button, FloatingMenu } from "../components/ui/primitives";
 import {
   IconCalendar,
   IconChevronDown,
@@ -59,6 +59,7 @@ const SNAP = 15; // drag snap, minutes
 const GUTTER = 56; // time-label column width
 const GRID_H = 24 * HOUR_PX;
 const DAY_MIN = 24 * 60;
+const PAN_BUF = 3; // extra day columns rendered on each side for trackpad panning
 
 const snapRound = (m: number) => Math.round(m / SNAP) * SNAP;
 const snapFloor = (m: number) => Math.floor(m / SNAP) * SNAP;
@@ -234,12 +235,16 @@ function MonthPicker({
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
+      {/* No max-w/truncate here: a % max-width keeps the title's intrinsic width
+          from propagating, so the flex column sizes to the (often shorter)
+          subtitle row and ellipsizes the month even with the header near-empty.
+          The header wraps its controls instead when space runs out. */}
       <button
         onClick={() => setOpen(!open)}
-        className="group flex max-w-full items-center gap-1.5 rounded-lg px-1.5 py-0.5 -ml-1.5 transition-colors hover:bg-ink/5"
+        className="group flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 -ml-1.5 transition-colors hover:bg-ink/5"
         title="Jump to date"
       >
-        <h1 className="truncate text-[19px] font-semibold tracking-[-0.01em] text-ink">
+        <h1 className="whitespace-nowrap text-[19px] font-semibold tracking-[-0.01em] text-ink">
           {label}
         </h1>
         <IconChevronDown
@@ -261,6 +266,106 @@ function MonthPicker({
                 setOpen(false);
               }}
             />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------ mode switcher ------------------------------ */
+
+/**
+ * Day / Week / Month / N-days pill. The custom segment opens a popover whose
+ * slider and steppers retune the day count live, from any mode, at any time.
+ */
+function ViewModeSwitcher({
+  mode,
+  customDays,
+  onMode,
+  onDays,
+}: {
+  mode: CalMode;
+  customDays: number;
+  onMode: (m: CalMode) => void;
+  onDays: (n: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const seg = (active: boolean) =>
+    cn(
+      "h-6 rounded-md px-2.5 text-xs font-medium transition-colors duration-150",
+      active ? "border border-bord bg-card text-ink shadow-card" : "text-ink3 hover:text-ink2",
+    );
+  const stepBtn =
+    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-bord bg-card text-[14px] leading-none text-ink2 transition-colors hover:border-bord2 hover:text-ink disabled:pointer-events-none disabled:opacity-40";
+  return (
+    <div className="relative">
+      <div className="inline-flex items-center gap-0.5 rounded-lg border border-bord bg-panel p-0.5">
+        {(
+          [
+            { value: "day", label: "Day" },
+            { value: "week", label: "Week" },
+            { value: "month", label: "Month" },
+          ] as const
+        ).map((o) => (
+          <button
+            key={o.value}
+            onClick={() => {
+              setOpen(false);
+              onMode(o.value);
+            }}
+            className={seg(mode === o.value)}
+          >
+            {o.label}
+          </button>
+        ))}
+        <button
+          onClick={() => {
+            if (mode !== "custom") onMode("custom");
+            setOpen(!open);
+          }}
+          title="Show a custom number of days"
+          className={cn(seg(mode === "custom"), "flex items-center gap-1 px-2")}
+        >
+          <span className="tabular-nums">{customDays}d</span>
+          <IconChevronDown
+            size={11}
+            className={cn("shrink-0 transition-transform", open && "rotate-180")}
+          />
+        </button>
+      </div>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[45]" onMouseDown={() => setOpen(false)} />
+          <div className="anim-pop absolute right-0 top-full z-[46] mt-1.5 w-[212px] rounded-xl border border-bord bg-pop p-3 shadow-pop">
+            <div className="flex items-center justify-between">
+              <span className="text-[11.5px] font-medium text-ink3">Days shown</span>
+              <span className="text-[13px] font-semibold tabular-nums text-ink">{customDays}</span>
+            </div>
+            <div className="mt-2.5 flex items-center gap-2">
+              <button
+                onClick={() => onDays(customDays - 1)}
+                disabled={customDays <= 2}
+                className={stepBtn}
+              >
+                −
+              </button>
+              <input
+                type="range"
+                min={2}
+                max={14}
+                value={clamp(customDays, 2, 14)}
+                onChange={(e) => onDays(Number(e.target.value))}
+                className="min-w-0 flex-1 accent-[rgb(var(--c-accent))]"
+              />
+              <button
+                onClick={() => onDays(customDays + 1)}
+                disabled={customDays >= 14}
+                className={stepBtn}
+              >
+                +
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -459,11 +564,14 @@ export function CalendarView() {
   const modeRaw = settings.viewPrefs["cal.mode"];
   const mode: CalMode =
     modeRaw === "day" || modeRaw === "month" || modeRaw === "custom" ? modeRaw : "week";
-  const customDays = clamp(Math.round(Number(settings.viewPrefs["cal.days"]) || 3), 2, 30);
+  const customDays = clamp(Math.round(Number(settings.viewPrefs["cal.days"]) || 3), 2, 14);
 
   /* ------------------------------ days + clock ------------------------------ */
 
   const [anchor, setAnchor] = useState(() => todayStr());
+  // After a trackpad pan, week mode keeps whatever start day the user settled
+  // on (anchor = first visible day) instead of snapping back to Monday.
+  const [free, setFree] = useState(false);
   const days = useMemo(() => {
     switch (mode) {
       case "day":
@@ -474,12 +582,25 @@ export function CalendarView() {
         return Array.from({ length: customDays }, (_, i) => toDateStr(addDays(start, i)));
       }
       default: {
-        const start = startOfWeek(parseDateStr(anchor), { weekStartsOn: 1 });
+        const base = parseDateStr(anchor);
+        const start = free ? base : startOfWeek(base, { weekStartsOn: 1 });
         return Array.from({ length: 7 }, (_, i) => toDateStr(addDays(start, i)));
       }
     }
-  }, [anchor, mode, customDays]);
+  }, [anchor, mode, customDays, free]);
   const nDays = days.length;
+
+  // The rendered strip extends past the visible window so panning always has
+  // real columns to reveal; indices everywhere below are into `extDays`.
+  const bufDays = mode === "month" ? 0 : PAN_BUF;
+  const extDays = useMemo(() => {
+    if (!bufDays) return days;
+    const start = parseDateStr(days[0]);
+    return Array.from({ length: days.length + bufDays * 2 }, (_, i) =>
+      toDateStr(addDays(start, i - bufDays)),
+    );
+  }, [days, bufDays]);
+  const extN = extDays.length;
 
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -489,7 +610,7 @@ export function CalendarView() {
   const now = new Date();
   const today = toDateStr(now);
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const todayIdx = days.indexOf(today);
+  const todayExtIdx = extDays.indexOf(today);
 
   /* ------------------------- active project + tray -------------------------- */
 
@@ -506,17 +627,17 @@ export function CalendarView() {
   /* ------------------------------ tasks by day ------------------------------ */
 
   const byDay = useMemo(() => {
-    const map = days.map(() => ({ timed: [] as Task[], allDay: [] as Task[] }));
+    const map = extDays.map(() => ({ timed: [] as Task[], allDay: [] as Task[] }));
     for (const t of visibleTasks(tasks, projects)) {
       if (!t.doDate) continue;
-      const idx = days.indexOf(t.doDate);
+      const idx = extDays.indexOf(t.doDate);
       if (idx === -1) continue;
       if (t.doTime != null) map[idx].timed.push(t);
       else map[idx].allDay.push(t);
     }
     for (const m of map) m.allDay.sort((a, b) => a.sortOrder - b.sortOrder);
     return map;
-  }, [tasks, projects, days]);
+  }, [tasks, projects, extDays]);
 
   /* ------------------------------- month grid ------------------------------- */
 
@@ -546,6 +667,27 @@ export function CalendarView() {
     return map;
   }, [mode, monthCells, tasks, projects]);
 
+  /* ---------------------------- navigation intents --------------------------- */
+
+  const step = (dir: 1 | -1) => {
+    const cur = parseDateStr(anchor);
+    if (mode === "month") setAnchor(toDateStr(addMonths(cur, dir)));
+    else if (mode === "day") setAnchor(toDateStr(addDays(cur, dir)));
+    else if (mode === "custom") setAnchor(toDateStr(addDays(cur, dir * customDays)));
+    else setAnchor(toDateStr(addDays(cur, dir * 7)));
+  };
+
+  /** Explicit jump (Today button, mini-month pick) restores Monday alignment. */
+  const jumpTo = (d: string) => {
+    setFree(false);
+    setAnchor(d);
+  };
+
+  const changeMode = (m: CalMode) => {
+    setFree(false);
+    setViewPref("cal.mode", m);
+  };
+
   /* --------------------------------- dragging -------------------------------- */
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -570,13 +712,13 @@ export function CalendarView() {
     return ((clientY - r.top) / HOUR_PX) * 60;
   };
 
+  /** Ext index of the visible day under clientX (buffer columns are never hit). */
   const dayFromX = (clientX: number): number => {
     const r = contentRef.current?.getBoundingClientRect();
-    if (!r) return 0;
-    return clamp(
-      Math.floor((clientX - r.left - GUTTER) / ((r.width - GUTTER) / nDays)),
-      0,
-      nDays - 1,
+    if (!r) return bufDays;
+    return (
+      bufDays +
+      clamp(Math.floor((clientX - r.left - GUTTER) / ((r.width - GUTTER) / nDays)), 0, nDays - 1)
     );
   };
 
@@ -606,6 +748,181 @@ export function CalendarView() {
     return { kind: "out", day: 0, min: 0 };
   };
 
+  /* ------------------------- trackpad horizontal pan ------------------------- */
+  // Two-finger swipes (wheel deltaX) drag the day strip 1:1 under the pointer;
+  // whole days committed as they cross keep the strip endless, and an idle gap
+  // snaps the view onto the nearest day boundary.
+
+  const paneRef = useRef<HTMLDivElement>(null);
+  const headStripRef = useRef<HTMLDivElement>(null);
+  const alldayStripRef = useRef<HTMLDivElement>(null);
+  const gridStripRef = useRef<HTMLDivElement>(null);
+
+  const pan = useRef({
+    px: 0, // current translateX of the strips
+    axis: null as "x" | "y" | null, // wheel gesture lock
+    idleTimer: 0,
+    raf: 0, // snap-settle animation
+    monthAcc: 0, // month mode: accumulated deltaX toward a discrete step
+    monthCoolUntil: 0,
+  });
+
+  // Latest values for the once-attached wheel listener.
+  const live = useRef({ mode, nDays, days, free, step });
+  live.current = { mode, nDays, days, free, step };
+
+  const applyPan = () => {
+    const t = `translate3d(${pan.current.px}px,0,0)`;
+    for (const el of [headStripRef.current, alldayStripRef.current, gridStripRef.current]) {
+      if (el) el.style.transform = t;
+    }
+  };
+
+  const dayWidth = () => {
+    const r = contentRef.current?.getBoundingClientRect();
+    return r ? (r.width - GUTTER) / live.current.nDays : 0;
+  };
+
+  /** Move the visible window k days; anchor === first visible day while free. */
+  const shiftView = (k: number) => {
+    setFree(true);
+    setAnchor((a) => toDateStr(addDays(parseDateStr(a), k)));
+  };
+
+  /** Week mode decouples from Monday the moment a pan starts. */
+  const beginPanGesture = () => {
+    const l = live.current;
+    if (l.mode === "week" && !l.free) {
+      setFree(true);
+      setAnchor(l.days[0]);
+    }
+  };
+
+  /** Fold whole crossed days out of px so it stays within one column width. */
+  const commitPanDays = () => {
+    const w = dayWidth();
+    if (!w) return;
+    const k = Math.trunc(-pan.current.px / w);
+    if (k !== 0) {
+      pan.current.px += k * w;
+      shiftView(k);
+    }
+  };
+
+  /** Idle after a swipe: land on the nearest day edge and ease the rest out. */
+  const snapPan = () => {
+    const p = pan.current;
+    p.axis = null;
+    p.monthAcc = 0;
+    if (p.px === 0) return;
+    const w = dayWidth();
+    if (!w) {
+      p.px = 0;
+      applyPan();
+      return;
+    }
+    const k = Math.round(-p.px / w);
+    if (k !== 0) {
+      p.px += k * w;
+      shiftView(k);
+    }
+    cancelAnimationFrame(p.raf);
+    const settle = () => {
+      p.px *= 0.72;
+      if (Math.abs(p.px) < 0.5) p.px = 0;
+      applyPan();
+      if (p.px !== 0) p.raf = requestAnimationFrame(settle);
+    };
+    p.raf = requestAnimationFrame(settle);
+  };
+
+  /** Drags need day columns at rest — finish any in-flight pan instantly. */
+  const settlePanNow = () => {
+    const p = pan.current;
+    window.clearTimeout(p.idleTimer);
+    if (p.px === 0) return;
+    cancelAnimationFrame(p.raf);
+    const w = dayWidth();
+    const k = w ? Math.round(-p.px / w) : 0;
+    if (k !== 0) shiftView(k);
+    p.px = 0;
+    p.axis = null;
+    applyPan();
+  };
+
+  useEffect(() => {
+    const el = paneRef.current;
+    if (!el) return;
+    const IDLE_MS = 150;
+
+    // React registers wheel passively — preventDefault (to suppress the
+    // browser's own back-swipe/overscroll) needs a native listener.
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) return; // pinch-zoom arrives as ctrl+wheel
+      const p = pan.current;
+      const unit = e.deltaMode === 1 ? 33 : 1; // line-mode wheels → px
+      let dx = e.deltaX * unit;
+      let dy = e.deltaY * unit;
+      if (e.shiftKey && dx === 0 && dy !== 0) {
+        dx = dy; // mouse wheels: shift+scroll pans sideways
+        dy = 0;
+      }
+
+      if (live.current.mode === "month") {
+        // No smooth strip here — a deliberate sideways swipe steps a month.
+        if (Math.abs(dx) <= Math.abs(dy)) return;
+        e.preventDefault();
+        window.clearTimeout(p.idleTimer);
+        p.idleTimer = window.setTimeout(snapPan, IDLE_MS);
+        const nowTs = performance.now();
+        if (nowTs < p.monthCoolUntil) return;
+        p.monthAcc += dx;
+        if (Math.abs(p.monthAcc) >= 70) {
+          live.current.step(p.monthAcc > 0 ? 1 : -1);
+          p.monthAcc = 0;
+          p.monthCoolUntil = nowTs + 400;
+        }
+        return;
+      }
+
+      if (dragRef.current) return; // never pan mid-drag
+
+      if (p.axis == null) {
+        p.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+        if (p.axis === "x") beginPanGesture();
+      }
+      window.clearTimeout(p.idleTimer);
+      p.idleTimer = window.setTimeout(snapPan, IDLE_MS);
+      if (p.axis !== "x") return; // vertical gesture → native grid scroll
+
+      e.preventDefault();
+      cancelAnimationFrame(p.raf);
+      p.px -= dx;
+      commitPanDays();
+      applyPan();
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Layout changes invalidate the pixel offset — reset the strip.
+  useEffect(() => {
+    const p = pan.current;
+    p.px = 0;
+    p.axis = null;
+    p.monthAcc = 0;
+    cancelAnimationFrame(p.raf);
+    window.clearTimeout(p.idleTimer);
+    applyPan();
+    return () => {
+      cancelAnimationFrame(p.raf);
+      window.clearTimeout(p.idleTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, nDays, trayOpen]);
+
   const startDrag = (
     e: React.PointerEvent,
     init: Pick<
@@ -616,6 +933,7 @@ export function CalendarView() {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
+    settlePanNow();
     setQc(null);
     setDrag({
       ...init,
@@ -703,7 +1021,7 @@ export function CalendarView() {
         } else if (d.mode === "create") {
           const start = clamp(snapFloor(d.anchorMin), 0, DAY_MIN - 60);
           setQc({
-            dateStr: days[d.day],
+            dateStr: extDays[d.day],
             startMin: d.zone === "allday" ? 0 : start,
             durMin: 60,
             allDay: d.zone === "allday",
@@ -718,7 +1036,7 @@ export function CalendarView() {
         case "create":
           if (d.zone === "grid") {
             setQc({
-              dateStr: days[d.day],
+              dateStr: extDays[d.day],
               startMin: d.startMin,
               durMin: d.durMin,
               allDay: false,
@@ -733,12 +1051,12 @@ export function CalendarView() {
             data.updateTask(d.task.id, { doDate: null, doTime: null });
             toast("Unscheduled — moved to the tray", "info");
           } else if (d.zone === "allday") {
-            data.updateTask(d.task.id, { doDate: days[d.day], doTime: null });
+            data.updateTask(d.task.id, { doDate: extDays[d.day], doTime: null });
           } else if (d.zone === "mcell" && d.dateStr) {
             data.updateTask(d.task.id, { doDate: d.dateStr });
           } else if (d.zone === "grid") {
             data.updateTask(d.task.id, {
-              doDate: days[d.day],
+              doDate: extDays[d.day],
               doTime: minutesToHM(d.startMin),
               durationMinutes: d.durMin,
             });
@@ -748,12 +1066,12 @@ export function CalendarView() {
         case "external": {
           if (!d.task) break;
           if (d.zone === "allday") {
-            data.updateTask(d.task.id, { doDate: days[d.day], doTime: null });
+            data.updateTask(d.task.id, { doDate: extDays[d.day], doTime: null });
           } else if (d.zone === "mcell" && d.dateStr) {
             data.updateTask(d.task.id, { doDate: d.dateStr });
           } else if (d.zone === "grid") {
             data.updateTask(d.task.id, {
-              doDate: days[d.day],
+              doDate: extDays[d.day],
               doTime: minutesToHM(d.startMin),
               durationMinutes: d.durMin,
             });
@@ -798,7 +1116,7 @@ export function CalendarView() {
     const sc = scrollRef.current;
     if (!sc) return;
     const target =
-      todayIdx >= 0
+      days.includes(today)
         ? ((nowMin - 100) / 60) * HOUR_PX
         : 7.5 * HOUR_PX;
     sc.scrollTop = clamp(target, 0, GRID_H - sc.clientHeight);
@@ -825,7 +1143,7 @@ export function CalendarView() {
 
   /* ------------------------------ per-day blocks ----------------------------- */
 
-  const placedByDay: Placed[][] = days.map((d, idx) => {
+  const placedByDay: Placed[][] = extDays.map((d, idx) => {
     const list: Placed[] = [];
     for (const t of byDay[idx].timed) {
       if (
@@ -864,13 +1182,6 @@ export function CalendarView() {
         ? format(parseDateStr(days[0]), "EEEE, MMM d")
         : `${format(parseDateStr(days[0]), "MMM d")} – ${format(parseDateStr(days[nDays - 1]), "MMM d")}`;
 
-  const step = (dir: 1 | -1) => {
-    const cur = parseDateStr(anchor);
-    if (mode === "month") setAnchor(toDateStr(addMonths(cur, dir)));
-    else if (mode === "day") setAnchor(toDateStr(addDays(cur, dir)));
-    else if (mode === "custom") setAnchor(toDateStr(addDays(cur, dir * customDays)));
-    else setAnchor(toDateStr(addDays(cur, dir * 7)));
-  };
   const stepTitle = mode === "month" ? "month" : mode === "day" ? "day" : mode === "custom" ? `${customDays} days` : "week";
 
   const floatingDrag =
@@ -880,6 +1191,13 @@ export function CalendarView() {
 
   const monthAnchorIdx = parseDateStr(anchor).getMonth();
   const MAX_CHIPS = 3;
+
+  // Day strips render `extN` columns sized so `nDays` fill the viewport, then
+  // hang `bufDays` columns off each edge for panning to reveal.
+  const stripFlexStyle: CSSProperties = {
+    width: `${(extN / nDays) * 100}%`,
+    marginLeft: `${(-bufDays / nDays) * 100}%`,
+  };
 
   return (
     <div className="relative flex h-full min-w-0 flex-1">
@@ -973,15 +1291,15 @@ export function CalendarView() {
       )}
 
       {/* ----------------------------- main pane ----------------------------- */}
-      <div className="flex min-w-0 flex-1 flex-col bg-card">
+      <div ref={paneRef} className="flex min-w-0 flex-1 flex-col bg-card">
         <header
           data-tauri-drag-region
-          className="flex shrink-0 items-end justify-between gap-4 px-6 pb-3 pt-9"
+          className="flex shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2 px-6 pb-3 pt-9"
         >
           <div className="min-w-0">
-            <MonthPicker label={titleLabel} visibleDays={days} onPick={setAnchor} />
+            <MonthPicker label={titleLabel} visibleDays={days} onPick={jumpTo} />
             <div className="mt-0.5 flex items-center gap-1.5 text-[12.5px] text-ink3">
-              <span>{rangeLabel}</span>
+              <span className="whitespace-nowrap">{rangeLabel}</span>
               <span className="text-ink3/50">·</span>
               <span className="flex min-w-0 items-center gap-1" title="New events join this project — pick with the arrows next to the sidebar">
                 <span
@@ -992,32 +1310,17 @@ export function CalendarView() {
               </span>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <Segmented
-              value={mode}
-              onChange={(v) => setViewPref("cal.mode", v)}
-              options={[
-                { value: "day", label: "Day" },
-                { value: "week", label: "Week" },
-                { value: "month", label: "Month" },
-                { value: "custom", label: `${customDays}d`, title: "Custom number of days" },
-              ]}
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <ViewModeSwitcher
+              mode={mode}
+              customDays={customDays}
+              onMode={changeMode}
+              onDays={(n) => {
+                setViewPref("cal.days", String(clamp(n, 2, 14)));
+                if (mode !== "custom") setViewPref("cal.mode", "custom");
+              }}
             />
-            {mode === "custom" && (
-              <input
-                type="number"
-                min={2}
-                max={30}
-                value={customDays}
-                onChange={(e) => {
-                  const n = clamp(Math.round(Number(e.target.value) || 0), 2, 30);
-                  setViewPref("cal.days", String(n));
-                }}
-                title="How many days to show"
-                className="h-[26px] w-[52px] rounded-lg border border-bord bg-card px-1 text-center text-[12px] tabular-nums text-ink focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/20"
-              />
-            )}
-            <Button variant="secondary" onClick={() => setAnchor(todayStr())}>
+            <Button variant="secondary" onClick={() => jumpTo(todayStr())}>
               Today
             </Button>
             <button
@@ -1087,7 +1390,7 @@ export function CalendarView() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setAnchor(dateStr);
+                        jumpTo(dateStr);
                         setViewPref("cal.mode", "day");
                       }}
                       title="Open day view"
@@ -1151,7 +1454,7 @@ export function CalendarView() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setAnchor(dateStr);
+                          jumpTo(dateStr);
                           setViewPref("cal.mode", "day");
                         }}
                         className="shrink-0 self-start rounded px-1 text-[10px] font-medium text-ink3 transition-colors hover:bg-ink/5 hover:text-ink2"
@@ -1167,29 +1470,34 @@ export function CalendarView() {
         ) : (
           <>
             {/* day headers */}
-            <div className="flex shrink-0 border-b border-bord" style={{ paddingLeft: GUTTER }}>
-              {days.map((d, i) => {
-                const date = parseDateStr(d);
-                const isToday = d === today;
-                return (
-                  <div
-                    key={d}
-                    className="flex flex-1 items-center justify-center gap-1.5 border-l border-bord/70 py-1.5 first:border-l-transparent"
-                  >
-                    <span className={cn("text-[11.5px] font-medium", isToday ? "text-ink" : "text-ink3")}>
-                      {format(date, "EEE")}
-                    </span>
-                    <span
-                      className={cn(
-                        "flex h-[20px] min-w-[20px] items-center justify-center rounded-md px-1 text-[11.5px] font-semibold tabular-nums",
-                        isToday ? "bg-red-500 text-white" : "text-ink2",
-                      )}
-                    >
-                      {format(date, "d")}
-                    </span>
-                  </div>
-                );
-              })}
+            <div className="flex shrink-0 border-b border-bord">
+              <div className="shrink-0" style={{ width: GUTTER }} />
+              <div className="relative min-w-0 flex-1 overflow-hidden">
+                <div ref={headStripRef} className="flex will-change-transform" style={stripFlexStyle}>
+                  {extDays.map((d) => {
+                    const date = parseDateStr(d);
+                    const isToday = d === today;
+                    return (
+                      <div
+                        key={d}
+                        className="flex min-w-0 flex-1 items-center justify-center gap-1.5 border-l border-bord/70 py-1.5"
+                      >
+                        <span className={cn("text-[11.5px] font-medium", isToday ? "text-ink" : "text-ink3")}>
+                          {format(date, "EEE")}
+                        </span>
+                        <span
+                          className={cn(
+                            "flex h-[20px] min-w-[20px] items-center justify-center rounded-md px-1 text-[11.5px] font-semibold tabular-nums",
+                            isToday ? "bg-red-500 text-white" : "text-ink2",
+                          )}
+                        >
+                          {format(date, "d")}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* all-day row */}
@@ -1197,74 +1505,78 @@ export function CalendarView() {
               <div className="flex shrink-0 items-start justify-end pr-2 pt-1" style={{ width: GUTTER }}>
                 <span className="text-[9px] font-medium uppercase tracking-wide text-ink3">all-day</span>
               </div>
-              {days.map((d, idx) => {
-                const dropTarget = drag?.moved && drag.zone === "allday" && drag.day === idx;
-                return (
-                  <div
-                    key={d}
-                    onClick={(e) => {
-                      if (e.target !== e.currentTarget) return;
-                      setQc({
-                        dateStr: d,
-                        startMin: 0,
-                        durMin: 60,
-                        allDay: true,
-                        x: e.clientX + 8,
-                        y: e.clientY + 6,
-                      });
-                    }}
-                    className={cn(
-                      "flex max-h-[92px] flex-1 flex-col gap-[3px] overflow-y-auto border-l border-bord/70 px-[3px] py-[3px] first:border-l-transparent",
-                      dropTarget && "bg-accent/10",
-                    )}
-                  >
-                    {byDay[idx].allDay.map((t) => {
-                      const color = projectColorOf(t, projects, settings.accentColor);
-                      const done = t.status === "done";
-                      const hidden = drag?.moved && drag.task?.id === t.id && drag.mode === "move";
-                      if (hidden) return null;
-                      return (
-                        <div
-                          key={t.id}
-                          onPointerDown={(e) =>
-                            startDrag(e, {
-                              mode: "move",
-                              task: t,
-                              grabOffsetMin: 0,
-                              anchorMin: 0,
-                              origStart: 9 * 60,
-                              origDur: taskDuration(t),
-                              zone: "allday",
-                              day: idx,
-                              startMin: 9 * 60,
-                              durMin: taskDuration(t),
-                            })
-                          }
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setMenu({ x: e.clientX, y: e.clientY, task: t });
-                          }}
-                          style={{ background: tint(color, dark), borderLeftColor: color }}
-                          className={cn(
-                            "shrink-0 cursor-grab select-none truncate rounded-[5px] border-l-[3px] px-1.5 py-[2px] text-[11px] font-medium leading-[1.35] text-ink",
-                            done && "opacity-50 line-through",
-                            detailTaskId === t.id && "ring-2 ring-accent",
-                          )}
-                          title={t.title}
-                        >
-                          {t.title}
-                        </div>
-                      );
-                    })}
-                    {qc && qc.allDay && qc.dateStr === d && (
-                      <div className="shrink-0 truncate rounded-[5px] border border-dashed border-accent bg-accent/10 px-1.5 py-[2px] text-[11px] font-medium text-ink">
-                        New task
+              <div className="relative min-w-0 flex-1 overflow-hidden">
+                <div ref={alldayStripRef} className="flex will-change-transform" style={stripFlexStyle}>
+                  {extDays.map((d, idx) => {
+                    const dropTarget = drag?.moved && drag.zone === "allday" && drag.day === idx;
+                    return (
+                      <div
+                        key={d}
+                        onClick={(e) => {
+                          if (e.target !== e.currentTarget) return;
+                          setQc({
+                            dateStr: d,
+                            startMin: 0,
+                            durMin: 60,
+                            allDay: true,
+                            x: e.clientX + 8,
+                            y: e.clientY + 6,
+                          });
+                        }}
+                        className={cn(
+                          "flex max-h-[92px] min-w-0 flex-1 flex-col gap-[3px] overflow-y-auto border-l border-bord/70 px-[3px] py-[3px]",
+                          dropTarget && "bg-accent/10",
+                        )}
+                      >
+                        {byDay[idx].allDay.map((t) => {
+                          const color = projectColorOf(t, projects, settings.accentColor);
+                          const done = t.status === "done";
+                          const hidden = drag?.moved && drag.task?.id === t.id && drag.mode === "move";
+                          if (hidden) return null;
+                          return (
+                            <div
+                              key={t.id}
+                              onPointerDown={(e) =>
+                                startDrag(e, {
+                                  mode: "move",
+                                  task: t,
+                                  grabOffsetMin: 0,
+                                  anchorMin: 0,
+                                  origStart: 9 * 60,
+                                  origDur: taskDuration(t),
+                                  zone: "allday",
+                                  day: idx,
+                                  startMin: 9 * 60,
+                                  durMin: taskDuration(t),
+                                })
+                              }
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setMenu({ x: e.clientX, y: e.clientY, task: t });
+                              }}
+                              style={{ background: tint(color, dark), borderLeftColor: color }}
+                              className={cn(
+                                "shrink-0 cursor-grab select-none truncate rounded-[5px] border-l-[3px] px-1.5 py-[2px] text-[11px] font-medium leading-[1.35] text-ink",
+                                done && "opacity-50 line-through",
+                                detailTaskId === t.id && "ring-2 ring-accent",
+                              )}
+                              title={t.title}
+                            >
+                              {t.title}
+                            </div>
+                          );
+                        })}
+                        {qc && qc.allDay && qc.dateStr === d && (
+                          <div className="shrink-0 truncate rounded-[5px] border border-dashed border-accent bg-accent/10 px-1.5 py-[2px] text-[11px] font-medium text-ink">
+                            New task
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* time grid */}
@@ -1274,6 +1586,7 @@ export function CalendarView() {
                 className="relative"
                 style={{ height: GRID_H }}
                 onPointerDown={(e) => {
+                  settlePanNow(); // day columns must be at rest before hit-testing
                   const z = zoneAt(e.clientX, e.clientY);
                   if (z.kind !== "grid") return;
                   startDrag(e, {
@@ -1310,102 +1623,115 @@ export function CalendarView() {
                   </div>
                 ))}
 
-                {/* day columns */}
-                {days.map((d, idx) => {
-                  const placed = placedByDay[idx];
-                  const lay = layoutOverlaps(placed);
-                  return (
-                    <div
-                      key={d}
-                      className="absolute inset-y-0 border-l border-bord/70"
-                      style={{
-                        left: `calc(${GUTTER}px + ${idx} * (100% - ${GUTTER}px) / ${nDays})`,
-                        width: `calc((100% - ${GUTTER}px) / ${nDays})`,
-                      }}
-                    >
-                      {placed.map((p) => (
-                        <EventBlock
-                          key={p.key}
-                          placed={p}
-                          lay={lay.get(p.key) ?? { col: 0, cols: 1 }}
-                          color={projectColorOf(p.task, projects, settings.accentColor)}
-                          dark={dark}
-                          selected={p.task != null && detailTaskId === p.task.id}
-                          onPointerDownMove={
-                            p.task && !p.ghost
-                              ? (e) => {
-                                  const t = p.task!;
-                                  startDrag(e, {
-                                    mode: "move",
-                                    task: t,
-                                    grabOffsetMin: yToMin(e.clientY) - p.start,
-                                    anchorMin: yToMin(e.clientY),
-                                    origStart: p.start,
-                                    origDur: p.dur,
-                                    zone: "grid",
-                                    day: idx,
-                                    startMin: p.start,
-                                    durMin: p.dur,
-                                  });
-                                }
-                              : undefined
-                          }
-                          onPointerDownResize={
-                            p.task && !p.ghost
-                              ? (e, edge) => {
-                                  const t = p.task!;
-                                  startDrag(e, {
-                                    mode: edge === "start" ? "resize-start" : "resize-end",
-                                    task: t,
-                                    grabOffsetMin: 0,
-                                    anchorMin: yToMin(e.clientY),
-                                    origStart: p.start,
-                                    origDur: p.dur,
-                                    zone: "grid",
-                                    day: idx,
-                                    startMin: p.start,
-                                    durMin: p.dur,
-                                  });
-                                }
-                              : undefined
-                          }
-                          onContextMenu={
-                            p.task
-                              ? (e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setMenu({ x: e.clientX, y: e.clientY, task: p.task! });
-                                }
-                              : undefined
-                          }
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
+                {/* day columns, on a strip that pans behind a clipped viewport */}
+                <div className="absolute inset-y-0 overflow-hidden" style={{ left: GUTTER, right: 0 }}>
+                  <div
+                    ref={gridStripRef}
+                    className="absolute inset-y-0 will-change-transform"
+                    style={{
+                      left: `${(-bufDays / nDays) * 100}%`,
+                      width: `${(extN / nDays) * 100}%`,
+                    }}
+                  >
+                    {extDays.map((d, idx) => {
+                      const placed = placedByDay[idx];
+                      const lay = layoutOverlaps(placed);
+                      return (
+                        <div
+                          key={d}
+                          className="absolute inset-y-0 border-l border-bord/70"
+                          style={{
+                            left: `${(idx / extN) * 100}%`,
+                            width: `${100 / extN}%`,
+                          }}
+                        >
+                          {placed.map((p) => (
+                            <EventBlock
+                              key={p.key}
+                              placed={p}
+                              lay={lay.get(p.key) ?? { col: 0, cols: 1 }}
+                              color={projectColorOf(p.task, projects, settings.accentColor)}
+                              dark={dark}
+                              selected={p.task != null && detailTaskId === p.task.id}
+                              onPointerDownMove={
+                                p.task && !p.ghost
+                                  ? (e) => {
+                                      const t = p.task!;
+                                      startDrag(e, {
+                                        mode: "move",
+                                        task: t,
+                                        grabOffsetMin: yToMin(e.clientY) - p.start,
+                                        anchorMin: yToMin(e.clientY),
+                                        origStart: p.start,
+                                        origDur: p.dur,
+                                        zone: "grid",
+                                        day: idx,
+                                        startMin: p.start,
+                                        durMin: p.dur,
+                                      });
+                                    }
+                                  : undefined
+                              }
+                              onPointerDownResize={
+                                p.task && !p.ghost
+                                  ? (e, edge) => {
+                                      const t = p.task!;
+                                      startDrag(e, {
+                                        mode: edge === "start" ? "resize-start" : "resize-end",
+                                        task: t,
+                                        grabOffsetMin: 0,
+                                        anchorMin: yToMin(e.clientY),
+                                        origStart: p.start,
+                                        origDur: p.dur,
+                                        zone: "grid",
+                                        day: idx,
+                                        startMin: p.start,
+                                        durMin: p.dur,
+                                      });
+                                    }
+                                  : undefined
+                              }
+                              onContextMenu={
+                                p.task
+                                  ? (e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setMenu({ x: e.clientX, y: e.clientY, task: p.task! });
+                                    }
+                                  : undefined
+                              }
+                            />
+                          ))}
+                        </div>
+                      );
+                    })}
 
-                {/* now line */}
-                {todayIdx >= 0 && (
-                  <>
-                    <span
-                      className="pointer-events-none absolute z-20 whitespace-nowrap rounded bg-card pr-1 text-right text-[9px] font-semibold tabular-nums text-red-500"
-                      style={{ top: (nowMin / 60) * HOUR_PX - 6, left: 0, width: GUTTER - 6 }}
-                    >
-                      {formatClock(nowMin).replace(" ", "")}
-                    </span>
-                    <div
-                      className="pointer-events-none absolute z-20"
-                      style={{
-                        top: (nowMin / 60) * HOUR_PX,
-                        left: `calc(${GUTTER}px + ${todayIdx} * (100% - ${GUTTER}px) / ${nDays})`,
-                        width: `calc((100% - ${GUTTER}px) / ${nDays})`,
-                      }}
-                    >
-                      <div className="relative h-[2px] bg-red-500">
-                        <span className="absolute -left-[3px] -top-[3px] h-2 w-2 rounded-full bg-red-500" />
+                    {/* now line rides the strip so it pans with its day */}
+                    {todayExtIdx >= 0 && (
+                      <div
+                        className="pointer-events-none absolute z-20"
+                        style={{
+                          top: (nowMin / 60) * HOUR_PX,
+                          left: `${(todayExtIdx / extN) * 100}%`,
+                          width: `${100 / extN}%`,
+                        }}
+                      >
+                        <div className="relative h-[2px] bg-red-500">
+                          <span className="absolute -left-[3px] -top-[3px] h-2 w-2 rounded-full bg-red-500" />
+                        </div>
                       </div>
-                    </div>
-                  </>
+                    )}
+                  </div>
+                </div>
+
+                {/* current-time label pinned in the gutter */}
+                {days.includes(today) && (
+                  <span
+                    className="pointer-events-none absolute z-20 whitespace-nowrap rounded bg-card pr-1 text-right text-[9px] font-semibold tabular-nums text-red-500"
+                    style={{ top: (nowMin / 60) * HOUR_PX - 6, left: 0, width: GUTTER - 6 }}
+                  >
+                    {formatClock(nowMin).replace(" ", "")}
+                  </span>
                 )}
               </div>
             </div>
@@ -1427,7 +1753,7 @@ export function CalendarView() {
             <span className="truncate text-[12px] font-medium text-ink">{drag!.task!.title}</span>
             <span className="shrink-0 text-[10.5px] text-ink3">
               {drag!.zone === "allday"
-                ? format(parseDateStr(days[drag!.day]), "EEE d")
+                ? format(parseDateStr(extDays[drag!.day]), "EEE d")
                 : drag!.zone === "mcell" && drag!.dateStr
                   ? format(parseDateStr(drag!.dateStr), "EEE d")
                   : drag!.zone === "tray"

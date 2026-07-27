@@ -437,6 +437,23 @@ export default function App() {
       return;
     }
 
+    if (o.type === "nav-today") {
+      // Sidebar "Today" drop: plan for today, back to not-started.
+      const today = todayStr();
+      for (const task of group) {
+        data.updateTask(task.id, {
+          doDate: today,
+          ...(task.status !== "todo" ? { status: "todo" as const } : {}),
+        });
+      }
+      ui.toast(
+        group.length > 1 ? `${group.length} tasks planned for today` : "Planned for today",
+        "success",
+      );
+      if (group.length > 1) ui.clearSelection();
+      return;
+    }
+
     if (o.type === "column") {
       const moved = adoptContainer(o.status, o.sprintId, o.unassign);
       if (o.resetRollover) {
