@@ -21,7 +21,7 @@ import {
   IconX,
 } from "../components/icons";
 
-function MilestoneRow({ m }: { m: Milestone }) {
+export function MilestoneRow({ m }: { m: Milestone }) {
   const updateMilestone = useData((s) => s.updateMilestone);
   const deleteMilestone = useData((s) => s.deleteMilestone);
   return (

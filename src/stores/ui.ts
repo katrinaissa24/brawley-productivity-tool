@@ -93,7 +93,7 @@ interface UIState {
 let toastSeq = 1;
 
 export const useUI = create<UIState>((set, get) => ({
-  view: { name: "today" },
+  view: { name: "home" },
   go(view) {
     // Navigating away closes the review wizard — it overlays whatever page
     // launched it, so leaving that page has to dismiss it.

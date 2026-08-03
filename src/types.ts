@@ -129,11 +129,13 @@ export interface ShortcutMap {
   settings: string;
   completeTask: string;
   editTask: string;
+  goHome: string;
   goInbox: string;
   goToday: string;
   goSprint: string;
   goReview: string;
   goInsights: string;
+  goGoals: string;
   goFirstProject: string;
 }
 
@@ -189,11 +191,13 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   settings: "mod+,",
   completeTask: "mod+enter",
   editTask: "e",
+  goHome: "mod+0",
   goInbox: "mod+1",
   goToday: "mod+2",
   goSprint: "mod+3",
   goReview: "mod+4",
   goInsights: "mod+5",
+  goGoals: "mod+7",
   goFirstProject: "mod+6",
 };
 
@@ -231,8 +235,10 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export type View =
+  | { name: "home" }
   | { name: "inbox" }
   | { name: "today" }
+  | { name: "goals"; goalId?: string }
   | { name: "sprint" }
   | { name: "reviews" }
   | { name: "insights" }

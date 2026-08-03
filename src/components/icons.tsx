@@ -46,6 +46,18 @@ export const IconSun = (p: P) =>
     </>,
   );
 
+export const IconHome = (p: P) =>
+  base(
+    p,
+    <>
+      <path d="M3.5 10.5 12 3.5l8.5 7" />
+      <path d="M5.5 9.5V19a1.5 1.5 0 0 0 1.5 1.5h10a1.5 1.5 0 0 0 1.5-1.5V9.5" />
+      <path d="M9.75 20.5v-5.25h4.5v5.25" />
+    </>,
+  );
+
+export const IconPlay = (p: P) => base(p, <polygon points="7 4.5 19 12 7 19.5" />);
+
 export const IconZap = (p: P) =>
   base(p, <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />);
 

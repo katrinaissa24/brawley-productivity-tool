@@ -35,8 +35,10 @@ import { CommandPalette } from "./components/CommandPalette";
 import { Onboarding } from "./components/Onboarding";
 import { BulkBar, confirmDeleteTasks } from "./components/BulkBar";
 import { BreakdownModal } from "./components/BreakdownModal";
+import { HomeView } from "./views/HomeView";
 import { InboxView } from "./views/InboxView";
 import { TodayView } from "./views/TodayView";
+import { GoalsView } from "./views/GoalsView";
 import { CalendarView } from "./views/CalendarView";
 import { ProjectView } from "./views/ProjectView";
 import { SettingsView } from "./views/SettingsView";
@@ -132,6 +134,8 @@ function useGlobalShortcuts(enabled: boolean) {
         ui.go({ name: "settings" });
         return;
       }
+      if (matchCombo(e, sc.goHome)) return e.preventDefault(), ui.go({ name: "home" });
+      if (matchCombo(e, sc.goGoals)) return e.preventDefault(), ui.go({ name: "goals" });
       if (matchCombo(e, sc.goInbox)) return e.preventDefault(), ui.go({ name: "inbox" });
       if (matchCombo(e, sc.goToday)) return e.preventDefault(), ui.go({ name: "today" });
       if (matchCombo(e, sc.goSprint)) return e.preventDefault(), ui.go({ name: "sprint" });
@@ -192,10 +196,14 @@ function CurrentView() {
   // usually) rather than living on a page of its own.
   if (reviewOpen) return <ReviewWizard />;
   switch (view.name) {
+    case "home":
+      return <HomeView />;
     case "inbox":
       return <InboxView />;
     case "today":
       return <TodayView />;
+    case "goals":
+      return <GoalsView goalId={view.goalId} />;
     case "sprint":
       return <SprintView />;
     case "reviews":

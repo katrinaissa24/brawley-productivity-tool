@@ -21,12 +21,22 @@ import { isDark, useSettings } from "../stores/settings";
 import { useUI } from "../stores/ui";
 import {
   activeProjects,
+  blockDuration,
   CAL_INBOX_KEY,
   calendarActiveKey,
   INBOX_COLOR,
   unscheduledTasks,
   visibleTasks,
 } from "../stores/selectors";
+import {
+  layoutOverlaps,
+  projectColorOf,
+  SNAP,
+  snapFloor,
+  snapRound,
+  tint,
+  type TimeSpan,
+} from "../lib/timegrid";
 import {
   clamp,
   cn,
@@ -55,17 +65,12 @@ import {
 /* -------------------------------- geometry -------------------------------- */
 
 const HOUR_PX = 48; // one hour of grid height
-const SNAP = 15; // drag snap, minutes
 const GUTTER = 56; // time-label column width
 const GRID_H = 24 * HOUR_PX;
 const DAY_MIN = 24 * 60;
 const PAN_BUF = 3; // extra day columns rendered on each side for trackpad panning
 
-const snapRound = (m: number) => Math.round(m / SNAP) * SNAP;
-const snapFloor = (m: number) => Math.floor(m / SNAP) * SNAP;
-
-/** Calendar block length for a task: explicit → estimate → an hour. */
-const taskDuration = (t: Task) => t.durationMinutes ?? t.estimateMinutes ?? 60;
+const taskDuration = blockDuration;
 
 type CalMode = "day" | "week" | "month" | "custom";
 
@@ -104,53 +109,10 @@ interface QuickCreateSpec {
 }
 
 /** One rendered block in a day column (real task, drag ghost, or pending create). */
-interface Placed {
-  key: string;
+interface Placed extends TimeSpan {
   task: Task | null;
-  start: number;
-  dur: number;
   ghost?: boolean;
   pending?: boolean;
-}
-
-/** Classic column-packing for overlapping events; returns col index + cluster width. */
-function layoutOverlaps(items: Placed[]): Map<string, { col: number; cols: number }> {
-  const sorted = [...items].sort((a, b) => a.start - b.start || b.dur - a.dur);
-  const out = new Map<string, { col: number; cols: number }>();
-  let colEnds: number[] = [];
-  let members: string[] = [];
-  const flush = () => {
-    for (const k of members) out.get(k)!.cols = colEnds.length;
-    colEnds = [];
-    members = [];
-  };
-  for (const it of sorted) {
-    if (members.length && colEnds.every((e) => e <= it.start)) flush();
-    let col = colEnds.findIndex((e) => e <= it.start);
-    if (col === -1) {
-      col = colEnds.length;
-      colEnds.push(0);
-    }
-    colEnds[col] = it.start + it.dur;
-    out.set(it.key, { col, cols: 1 });
-    members.push(it.key);
-  }
-  flush();
-  return out;
-}
-
-/* --------------------------------- helpers -------------------------------- */
-
-function projectColorOf(task: Task | null, projects: Project[], fallback: string): string {
-  if (!task) return fallback;
-  if (!task.projectId) return INBOX_COLOR;
-  return projects.find((p) => p.id === task.projectId)?.color ?? fallback;
-}
-
-/** #RRGGBB + alpha byte — soft pastel fill behind each event. */
-function tint(hex: string, dark: boolean): string {
-  const a = dark ? "3d" : "26";
-  return /^#[0-9a-fA-F]{6}$/.test(hex) ? `${hex}${a}` : hex;
 }
 
 /* ------------------------------- mini month -------------------------------- */

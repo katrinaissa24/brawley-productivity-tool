@@ -15,8 +15,17 @@ import { cn, formatMinutes, plural, todayStr } from "../lib/util";
 import { DroppableColumn, SortableTask } from "../components/dnd";
 import { TaskCard } from "../components/TaskCard";
 import { ViewShell } from "../components/ViewShell";
-import { Button, EmptyState, SectionLabel } from "../components/ui/primitives";
-import { IconCheckCircle, IconChevronDown, IconChevronRight, IconSparkle, IconSun } from "../components/icons";
+import { Button, EmptyState, SectionLabel, Segmented } from "../components/ui/primitives";
+import {
+  IconCalendar,
+  IconCheckCircle,
+  IconChevronDown,
+  IconChevronRight,
+  IconList,
+  IconSparkle,
+  IconSun,
+} from "../components/icons";
+import { TodayCalendar } from "./TodayCalendar";
 
 export function TodayView() {
   const tasks = useData((s) => s.tasks);
@@ -24,6 +33,7 @@ export function TodayView() {
   const sprints = useData((s) => s.sprints);
   const settings = useSettings((s) => s.settings);
   const patch = useSettings((s) => s.patch);
+  const setViewPref = useSettings((s) => s.setViewPref);
   const setPlanDayOpen = useUI((s) => s.setPlanDayOpen);
   const [laterOpen, setLaterOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(true);
@@ -55,6 +65,7 @@ export function TodayView() {
   }, []);
 
   const dayCleared = open.length === 0 && doLater.length === 0 && done.length > 0;
+  const mode = settings.viewPrefs["today.view"] === "calendar" ? "calendar" : "list";
 
   return (
     <ViewShell
@@ -72,15 +83,30 @@ export function TodayView() {
         </span>
       }
       actions={
-        <Button
-          variant="secondary"
-          icon={<IconSparkle size={13} />}
-          onClick={() => setPlanDayOpen(true)}
-        >
-          Plan my day
-        </Button>
+        <>
+          <Button
+            variant="secondary"
+            icon={<IconSparkle size={13} />}
+            onClick={() => setPlanDayOpen(true)}
+          >
+            Plan my day
+          </Button>
+          <Segmented
+            value={mode}
+            onChange={(v) => setViewPref("today.view", v)}
+            options={[
+              { value: "list", label: <IconList size={13} />, title: "List — by status" },
+              { value: "calendar", label: <IconCalendar size={13} />, title: "Calendar — by time" },
+            ]}
+          />
+        </>
       }
+      padContent={mode === "list"}
+      contentClassName={mode === "calendar" ? "flex flex-col" : undefined}
     >
+      {mode === "calendar" ? (
+        <TodayCalendar />
+      ) : (
       <div className="mx-auto w-full max-w-[780px]">
         {open.length === 0 && doLater.length === 0 && done.length === 0 && (
           <EmptyState
@@ -242,6 +268,7 @@ export function TodayView() {
           </>
         )}
       </div>
+      )}
     </ViewShell>
   );
 }

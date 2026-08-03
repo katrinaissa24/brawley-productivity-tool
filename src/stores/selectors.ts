@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import type { Goal, Milestone, Project, Sprint, Task, TaskStatus } from "../types";
-import { daysBetween, daysUntil, localDateOf, parseDateStr, sum, todayStr } from "../lib/util";
+import { daysBetween, daysUntil, localDateOf, parseDateStr, parseHM, sum, todayStr } from "../lib/util";
 
 export const isOpen = (t: Task): boolean => !t.archivedAt && t.status !== "done";
 
@@ -56,6 +56,81 @@ export function todayLists(tasks: Task[], projects: Project[], cap: number): Tod
     .filter((t) => t.status === "done" && t.completedAt && localDateOf(t.completedAt) === today)
     .sort((a, b) => ((a.completedAt ?? "") < (b.completedAt ?? "") ? 1 : -1));
   return { focus: fresh.slice(0, cap), later: fresh.slice(cap), doLater, done };
+}
+
+/** Calendar block length for a task: explicit → estimate → an hour. */
+export function blockDuration(t: Task): number {
+  return t.durationMinutes ?? t.estimateMinutes ?? 60;
+}
+
+/** Today's tasks split by clock position — drives the Home page and Today's calendar. */
+export interface Agenda {
+  /** Happening right now: a time block spanning `nowMin`, else an in-progress task. */
+  current: Task | null;
+  /** True when `current` was picked from its scheduled time block. */
+  currentTimed: boolean;
+  /** Timed tasks starting later today, earliest first. */
+  upcoming: Task[];
+  /** Timed tasks whose block has already passed, still open. */
+  missed: Task[];
+  /** Open tasks planned for today with no time on them. */
+  anytime: Task[];
+  /** Every open task planned for today with a time, earliest first. */
+  timed: Task[];
+  done: Task[];
+}
+
+export function todayAgenda(tasks: Task[], projects: Project[], nowMin: number): Agenda {
+  const today = todayStr();
+  const vis = visibleTasks(tasks, projects);
+  const open = vis.filter((t) => t.status !== "done" && t.doDate != null && t.doDate <= today);
+
+  const startOf = (t: Task) => parseHM(t.doTime ?? "") ?? 0;
+  const timed = open
+    .filter((t) => t.doTime != null)
+    .sort((a, b) => startOf(a) - startOf(b) || a.sortOrder - b.sortOrder);
+  const anytime = open
+    .filter((t) => t.doTime == null)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  // Latest block that has started and not yet ended wins — overlapping blocks
+  // read as "the one I most recently moved into".
+  let current: Task | null = null;
+  for (const t of timed) {
+    const s = startOf(t);
+    if (s <= nowMin && nowMin < s + blockDuration(t)) current = t;
+  }
+  const currentTimed = current != null;
+  if (!current) current = open.find((t) => t.status === "in_progress") ?? null;
+
+  const upcoming = timed.filter((t) => startOf(t) > nowMin);
+  const missed = timed.filter(
+    (t) => startOf(t) + blockDuration(t) <= nowMin && t.id !== current?.id,
+  );
+
+  const done = vis
+    .filter((t) => t.status === "done" && t.completedAt && localDateOf(t.completedAt) === today)
+    .sort((a, b) => ((a.completedAt ?? "") < (b.completedAt ?? "") ? 1 : -1));
+
+  return { current, currentTimed, upcoming, missed, anytime, timed, done };
+}
+
+/** Every goal, freshest work first: active by nearest deadline, then closed ones. */
+export function sortedGoals(goals: Goal[]): Goal[] {
+  const rank: Record<Goal["status"], number> = {
+    active: 0,
+    completed: 1,
+    missed: 2,
+    archived: 3,
+  };
+  return goals
+    .slice()
+    .sort(
+      (a, b) =>
+        rank[a.status] - rank[b.status] ||
+        (a.targetDate < b.targetDate ? -1 : a.targetDate > b.targetDate ? 1 : 0) ||
+        (a.createdAt < b.createdAt ? -1 : 1),
+    );
 }
 
 /** Open tasks in a project with no planned day — the calendar's unscheduled tray. */

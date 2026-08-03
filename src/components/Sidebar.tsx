@@ -25,12 +25,14 @@ import {
   IconCalendar,
   IconChart,
   IconChevronRight,
+  IconHome,
   IconInbox,
   IconLayers,
   IconPlus,
   IconSearch,
   IconSettings,
   IconSun,
+  IconTarget,
   IconZap,
 } from "./icons";
 import { FloatingMenu, Kbd, type MenuItem } from "./ui/primitives";
@@ -330,6 +332,18 @@ export function Sidebar() {
           <div className="flex items-center">
             <div className={cn("min-w-0 flex-1", calMode && "pr-3")}>
               <NavItem
+                icon={<IconHome size={15} />}
+                label="Home"
+                active={is("home")}
+                onClick={() => go({ name: "home" })}
+                shortcut="⌘0"
+              />
+            </div>
+            {gutter}
+          </div>
+          <div className="flex items-center">
+            <div className={cn("min-w-0 flex-1", calMode && "pr-3")}>
+              <NavItem
                 icon={<IconInbox size={15} />}
                 label="Inbox"
                 badge={inboxCount}
@@ -366,6 +380,14 @@ export function Sidebar() {
               active: is("sprint") || is("reviews"),
               onClick: () => go({ name: "sprint" }),
               shortcut: "⌘3",
+            },
+            {
+              icon: <IconTarget size={15} />,
+              label: "Goals",
+              // The single-goal page is a detail of this list — keep it lit.
+              active: is("goals") || is("goal"),
+              onClick: () => go({ name: "goals" }),
+              shortcut: "⌘7",
             },
             {
               icon: <IconChart size={15} />,
